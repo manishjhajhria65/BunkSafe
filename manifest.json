@@ -1,0 +1,9 @@
+{
+  "name": "Timetable Webgate",
+  "short_name": "Webgate",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#101317",
+  "theme_color": "#101317"
+}

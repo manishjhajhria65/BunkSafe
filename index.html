@@ -1,0 +1,731 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, viewport-fit=cover" />
+<title>Timetable Webgate</title>
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Webgate">
+<meta name="theme-color" content="#101317">
+<link rel="manifest" href="manifest.json">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --c-steel:#4C6FA6; --c-steel-soft:#4C6FA61a;
+    --c-moss:#3F9468; --c-moss-soft:#3F94681a;
+    --c-amber:#D98E2B; --c-amber-soft:#D98E2B1a;
+    --c-rust:#B3563C; --c-rust-soft:#B3563C1a;
+    --tile-bg:#14171D; --tile-fg:#F4F1E8; --tile-seam:#00000055;
+    --radius-lg:18px; --radius-md:12px;
+    --font-mono:'IBM Plex Mono', ui-monospace, monospace;
+    --font-sans:'Manrope', system-ui, sans-serif;
+  }
+  [data-theme="light"]{
+    --bg-0:#E7ECEA; --bg-1:#EFF3F1; --surface:#FFFFFF; --surface-2:#F4F6F5;
+    --text:#161A1A; --text-dim:#5C6663; --text-faint:#96A19D; --border:#DCE3E0;
+    --shadow:0 10px 30px -12px rgba(20,30,28,0.18);
+  }
+  [data-theme="dark"]{
+    --bg-0:#0B0D10; --bg-1:#101317; --surface:#171B21; --surface-2:#1D222A;
+    --text:#EDEFF1; --text-dim:#9AA2AC; --text-faint:#5B636D; --border:#272D36;
+    --shadow:0 10px 30px -12px rgba(0,0,0,0.6);
+  }
+  *{ box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+  html,body{ height:100%; overscroll-behavior-y:none; }
+  body{
+    margin:0; font-family:var(--font-sans);
+    background: radial-gradient(120% 60% at 50% -10%, var(--bg-1), var(--bg-0));
+    color:var(--text); min-height:100vh; min-height:100dvh; transition:background .4s ease, color .4s ease;
+  }
+  button{ touch-action:manipulation; -webkit-user-select:none; user-select:none; font-family:inherit; }
+  input{ font-family:inherit; }
+  :focus-visible{ outline:2px solid var(--c-steel); outline-offset:2px; }
+
+  .device{ display:flex; justify-content:center; align-items:center; min-height:100vh; min-height:100dvh; width:100%; }
+  .app{
+    position:relative; width:100%; max-width:430px; min-height:100vh; min-height:100dvh;
+    padding:16px 18px 22px; padding-bottom:calc(22px + env(safe-area-inset-bottom));
+    display:flex; flex-direction:column; gap:14px;
+    overflow-y:auto; -webkit-overflow-scrolling:touch;
+  }
+  .notch{ display:none; }
+
+  @media (min-width:640px){
+    body{ background:#080a0c; }
+    .device{ padding:40px 0; }
+    .app{
+      height:844px; max-height:92vh; max-height:92dvh; min-height:0;
+      border-radius:46px; border:9px solid #05060a;
+      box-shadow:0 40px 80px -24px rgba(0,0,0,.65), 0 0 0 1px #1c2027;
+      padding-top:34px;
+    }
+    .notch{
+      display:block; position:sticky; top:0; margin:-34px auto 10px;
+      width:120px; height:22px; background:#05060a; border-radius:0 0 16px 16px; z-index:5;
+    }
+  }
+
+  .topbar{ display:flex; align-items:center; justify-content:space-between; gap:8px; }
+  .eyebrow{
+    font-family:var(--font-mono); font-size:11px; letter-spacing:.14em;
+    text-transform:uppercase; color:var(--text-faint);
+    display:flex; align-items:center; gap:8px;
+  }
+  .eyebrow .dot{ width:6px;height:6px;border-radius:50%; background:var(--c-moss); box-shadow:0 0 0 3px var(--c-moss-soft); flex:0 0 auto; }
+  .icon-btn{
+    width:38px;height:38px; border-radius:50%; border:1px solid var(--border);
+    background:var(--surface); color:var(--text-dim);
+    display:flex;align-items:center;justify-content:center; cursor:pointer; font-size:15px; flex:0 0 auto;
+  }
+  .topbar-icons{ display:flex; gap:8px; }
+
+  .greeting{ font-weight:800; font-size:22px; letter-spacing:-0.01em; margin:0; }
+  .greeting span{ color:var(--text-dim); font-weight:600; }
+  .gate-sub{ font-family:var(--font-mono); font-size:11px; color:var(--text-faint); }
+
+  .clock-wrap{ display:flex; justify-content:center; }
+  .flap-row{ display:flex; align-items:center; gap:6px; padding:14px 12px; background:var(--tile-bg); border-radius:var(--radius-lg); box-shadow:var(--shadow); }
+  .flap-group{ display:flex; gap:3px; }
+  .flap{ position:relative; width:29px; height:42px; border-radius:6px; background:linear-gradient(180deg,#22262E,#191C22); overflow:hidden; }
+  .flap::after{ content:""; position:absolute; left:0;right:0;top:50%; height:1px; background:var(--tile-seam); transform:translateY(-.5px); }
+  .flap .digit{ font-family:var(--font-mono); font-weight:600; font-size:25px; color:var(--tile-fg); width:100%;height:100%; display:flex;align-items:center;justify-content:center; transform-origin:center; }
+  .flap.flip .digit{ animation:flipDigit .35s ease; }
+  @keyframes flipDigit{ 0%{transform:rotateX(0);opacity:1;} 45%{transform:rotateX(85deg);opacity:.25;} 55%{transform:rotateX(-85deg);opacity:.25;} 100%{transform:rotateX(0);opacity:1;} }
+  .flap-colon{ font-family:var(--font-mono); font-size:21px; color:#6B7481; padding:0 1px; }
+  .date-row{ text-align:center; font-family:var(--font-mono); font-size:12px; letter-spacing:.08em; text-transform:uppercase; color:var(--text-dim); }
+
+  .status-card{ position:relative; background:var(--surface); border:1px solid var(--border); border-radius:var(--radius-lg); padding:16px 16px 16px 20px; box-shadow:var(--shadow); overflow:hidden; }
+  .status-card::before{ content:""; position:absolute; left:0; top:0; bottom:0; width:5px; background:var(--accent); }
+  .status-top{ display:flex; align-items:center; justify-content:space-between; margin-bottom:6px; }
+  .status-pill{ font-family:var(--font-mono); font-size:11px; letter-spacing:.08em; text-transform:uppercase; font-weight:600; color:var(--accent); background:var(--accent-soft); padding:4px 9px; border-radius:999px; }
+  .status-label{ font-size:19px; font-weight:800; margin:2px 0 2px; }
+  .status-msg{ font-size:14px; color:var(--text-dim); }
+  .status-msg b{ color:var(--text); font-family:var(--font-mono); font-weight:600; }
+
+  .cta{ display:flex; }
+  .btn{
+    flex:1 1 auto; border:none; border-radius:var(--radius-md); padding:14px 16px;
+    font-weight:700; font-size:15px; cursor:pointer;
+    display:flex; align-items:center; justify-content:center; gap:8px;
+    transition:transform .15s ease, filter .15s ease, opacity .15s ease; min-height:48px;
+  }
+  .btn:active{ transform:scale(.97); }
+  .btn-primary{ background:var(--c-moss); color:#fff; }
+  .btn-secondary{ background:var(--surface); color:var(--text); border:1px solid var(--border); }
+  .btn-ghost{ background:transparent; color:var(--c-steel); border:1px dashed var(--border); }
+  .btn-warn{ background:transparent; color:var(--c-rust); border:1px solid var(--c-rust); }
+  .btn-block{ width:100%; padding:16px; font-size:16px; }
+  .btn-sm{ padding:9px 12px; font-size:13px; min-height:auto; }
+
+  .panel-title{ display:flex; align-items:baseline; justify-content:space-between; margin:2px 2px 0; }
+  .panel-title h2{ font-size:14px; margin:0; letter-spacing:.02em; }
+  .panel-title span{ font-family:var(--font-mono); font-size:11px; color:var(--text-faint); }
+
+  .timeline{ list-style:none; margin:10px 0 0; padding:0; background:var(--surface); border:1px solid var(--border); border-radius:var(--radius-lg); overflow:hidden; }
+  .t-item{ display:flex; gap:12px; padding:12px 16px; position:relative; border-bottom:1px solid var(--border); }
+  .t-item:last-child{ border-bottom:none; }
+  .t-rail{ display:flex; flex-direction:column; align-items:center; width:14px; }
+  .t-dot{ width:9px; height:9px; border-radius:50%; background:var(--text-faint); margin-top:5px; flex:0 0 auto; }
+  .t-line{ width:2px; flex:1; background:var(--border); margin-top:2px; }
+  .t-time{ font-family:var(--font-mono); font-size:12.5px; font-weight:600; color:var(--text-dim); width:78px; flex:0 0 auto; padding-top:1px; }
+  .t-label{ font-size:14.5px; font-weight:600; }
+  .t-item.past{ opacity:.5; }
+  .t-item.past .t-label{ text-decoration:line-through; }
+  .t-item.past .t-dot{ background:var(--text-faint); }
+  .t-item.current{ background:var(--accent-soft); }
+  .t-item.current .t-dot{ background:var(--accent); box-shadow:0 0 0 4px var(--accent-soft); }
+  .t-item.current .t-time{ color:var(--accent); }
+  .t-empty{ padding:22px 16px; text-align:center; color:var(--text-faint); font-size:13.5px; }
+
+  .day-nav{ display:flex; align-items:center; justify-content:space-between; gap:8px; margin-top:8px; }
+  .nav-btn{ width:38px; height:34px; border-radius:10px; border:1px solid var(--border); background:var(--surface); color:var(--text-dim); font-size:18px; cursor:pointer; line-height:1; }
+  .today-btn{ padding:7px 14px; border-radius:999px; border:1px solid var(--c-steel); background:transparent; color:var(--c-steel); font-size:12.5px; font-weight:700; cursor:pointer; }
+  .today-btn.hidden{ visibility:hidden; }
+  .swipe-hint{ font-family:var(--font-mono); font-size:10.5px; color:var(--text-faint); letter-spacing:.06em; text-align:center; flex:1; }
+  @keyframes slideInR{ from{ transform:translateX(42px); opacity:0; } to{ transform:none; opacity:1; } }
+  @keyframes slideInL{ from{ transform:translateX(-42px); opacity:0; } to{ transform:none; opacity:1; } }
+  .timeline.in-r{ animation:slideInR .25s ease; }
+  .timeline.in-l{ animation:slideInL .25s ease; }
+  footer{ text-align:center; font-size:11px; color:var(--text-faint); padding-top:2px; padding-bottom:2px; }
+
+  /* ---------- Schedule editor overlay ---------- */
+  .editor-overlay{
+    display:none; position:absolute; top:0; right:0; bottom:0; left:0; z-index:30;
+    background:var(--bg-1); flex-direction:column; padding:16px 18px 18px; padding-bottom:calc(18px + env(safe-area-inset-bottom));
+  }
+  .editor-overlay.open{ display:flex; }
+  @media (max-width:639px){ .editor-overlay{ position:fixed; } }
+  .editor-head{ display:flex; align-items:center; justify-content:space-between; margin-bottom:4px; }
+  .editor-head h2{ font-size:17px; margin:0; }
+  .day-tabs{ display:flex; gap:6px; overflow-x:auto; padding:10px 0 4px; scrollbar-width:none; }
+  .day-tabs::-webkit-scrollbar{ display:none; }
+  .day-tab{
+    flex:0 0 auto; padding:8px 13px; border-radius:999px; border:1px solid var(--border);
+    background:var(--surface); color:var(--text-dim); font-size:12.5px; font-weight:700; cursor:pointer;
+  }
+  .day-tab.active{ background:var(--c-steel); border-color:var(--c-steel); color:#fff; }
+  .day-count{ font-family:var(--font-mono); font-size:10px; opacity:.75; margin-left:4px; }
+
+  .editor-list{ flex:1; overflow-y:auto; margin-top:8px; display:flex; flex-direction:column; gap:8px; padding-bottom:8px; }
+  .editor-row{
+    background:var(--surface); border:1px solid var(--border); border-radius:var(--radius-md);
+    padding:10px; display:grid; grid-template-columns:1fr 1fr auto; gap:6px; align-items:center;
+  }
+  .editor-row input[type="time"]{
+    width:100%; padding:8px 6px; border-radius:8px; border:1px solid var(--border);
+    background:var(--surface-2); color:var(--text); font-size:13px;
+  }
+  .editor-row input[type="text"]{
+    grid-column:1 / -1; width:100%; padding:9px 10px; border-radius:8px; border:1px solid var(--border);
+    background:var(--surface-2); color:var(--text); font-size:13.5px;
+  }
+  .row-del{
+    width:30px; height:30px; border-radius:8px; border:1px solid var(--border);
+    background:var(--surface-2); color:var(--c-rust); font-size:15px; cursor:pointer;
+  }
+  .editor-empty{ text-align:center; color:var(--text-faint); font-size:13px; padding:24px 0; }
+  .editor-actions{ display:flex; gap:8px; padding-top:10px; }
+  .name-label{ font-family:var(--font-mono); font-size:10.5px; letter-spacing:.12em; text-transform:uppercase; color:var(--text-faint); margin-top:8px; }
+  .name-input{ width:100%; margin-top:4px; padding:11px 12px; border-radius:10px; border:1px solid var(--border); background:var(--surface); color:var(--text); font-size:15px; font-weight:600; }
+  .greeting{ cursor:pointer; }
+  .editor-footer{ display:flex; gap:8px; padding-top:10px; }
+</style>
+</head>
+<body data-theme="light">
+  <div class="device">
+    <div class="app" id="app">
+      <div class="notch"></div>
+
+      <div class="topbar">
+        <div class="eyebrow"><span class="dot" id="pulseDot"></span>Timetable Webgate</div>
+        <div class="topbar-icons">
+          <button class="icon-btn" id="editBtn" aria-label="Edit schedule">✎</button>
+          <button class="icon-btn" id="themeToggle" aria-label="Toggle theme">◐</button>
+        </div>
+      </div>
+
+      <h1 class="greeting" id="greeting">Good morning, <span>Maya</span></h1>
+      <div class="gate-sub" id="gateSub">Loading schedule…</div>
+
+      <div class="clock-wrap"><div class="flap-row" id="flapRow" aria-label="Current time"></div></div>
+      <div class="date-row" id="dateRow"></div>
+
+      <div class="status-card" id="statusCard">
+        <div class="status-top"><span class="status-pill" id="statusPill">Loading</span></div>
+        <div class="status-label" id="statusLabel">—</div>
+        <div class="status-msg" id="statusMsg">—</div>
+      </div>
+
+      <div class="cta" id="cta"></div>
+
+      <div class="panel-title">
+        <h2 id="panelTitle">Today's classes</h2>
+        <span id="scheduleRange"></span>
+      </div>
+      <div class="day-nav">
+        <button class="nav-btn" id="prevDay" aria-label="Previous day">‹</button>
+        <button class="today-btn hidden" id="todayBtn">Today</button>
+        <div class="swipe-hint" id="swipeHint">‹ swipe ›</div>
+        <button class="nav-btn" id="nextDay" aria-label="Next day">›</button>
+      </div>
+      <ul class="timeline" id="timeline"></ul>
+
+      <footer>Swipe left or right to change day. Tap ✎ to edit your timetable.</footer>
+
+      <!-- ---------------- Editor overlay ---------------- -->
+      <div class="editor-overlay" id="editorOverlay">
+        <div class="editor-head">
+          <h2>Edit Timetable</h2>
+          <button class="icon-btn" id="editorClose" aria-label="Close editor">✕</button>
+        </div>
+        <label class="name-label" for="nameInput">Your name</label>
+        <input type="text" id="nameInput" class="name-input" maxlength="20" placeholder="Enter your name" />
+        <div class="day-tabs" id="dayTabs"></div>
+        <div class="editor-list" id="editorList"></div>
+        <div class="editor-actions">
+          <button class="btn btn-ghost btn-sm" id="addPeriodBtn">+ Add period</button>
+          <button class="btn btn-ghost btn-sm" id="resetSampleBtn">Load sample</button>
+        </div>
+        <div class="editor-footer">
+          <button class="btn btn-secondary" id="editorCancel" style="flex:1;">Cancel</button>
+          <button class="btn btn-primary" id="editorSave" style="flex:2;">Save Timetable</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+<script>
+(function(){
+  "use strict";
+
+  const NAME_KEY = "webgate-name-v1";
+  let userName = "Friend";
+  let hasSavedName = false;
+  function esc(t){ return String(t).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+  try{ const n = window.localStorage.getItem(NAME_KEY); if (n){ userName = n; hasSavedName = true; } }catch(e){}
+  const DAYS = ["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"];
+  const STORAGE_KEY = "weekly-timetable-v1";
+
+  /* ---------------- Seed data (best-effort read of your uploaded
+     timetable — double check it in the editor and fix anything off) */
+  const DEFAULT_SCHEDULE = {
+    Sunday: [],
+    Monday: [
+      { start:"08:00", end:"09:40", label:"Prompt Engg. — NYB 005" },
+      { start:"09:40", end:"10:30", label:"CN — VIB 403" },
+      { start:"12:05", end:"12:50", label:"DMS — NYB 001" },
+    ],
+    Tuesday: [
+      { start:"08:00", end:"08:50", label:"DMS — NYB 313" },
+      { start:"09:40", end:"11:20", label:"Python Lab — VIB 411" },
+      { start:"11:20", end:"12:05", label:"OS — VIB 212" },
+    ],
+    Wednesday: [
+      { start:"08:00", end:"09:40", label:"Prompt Engg. — NYB 005" },
+      { start:"10:30", end:"11:20", label:"DMS — VIB 212" },
+      { start:"11:20", end:"12:05", label:"Python — VIB 212" },
+    ],
+    Thursday: [
+      { start:"08:00", end:"09:40", label:"Python Lab — VIB 206" },
+      { start:"10:30", end:"11:20", label:"CN — NYB 313" },
+      { start:"11:20", end:"12:05", label:"OS — NYB 313" },
+      { start:"12:05", end:"12:50", label:"SE — VIB 312" },
+    ],
+    Friday: [
+      { start:"08:00", end:"08:50", label:"OS — NYB 006" },
+      { start:"08:50", end:"09:40", label:"Python — NYB 313" },
+      { start:"10:30", end:"11:20", label:"SE — VIB 312" },
+      { start:"11:20", end:"12:50", label:"CN Lab — VIB 403" },
+    ],
+    Saturday: [
+      { start:"10:30", end:"11:20", label:"CN — VIB 212" },
+      { start:"11:20", end:"12:50", label:"OS Lab — VIB 411" },
+    ],
+  };
+
+  let weeklySchedule = JSON.parse(JSON.stringify(DEFAULT_SCHEDULE));
+  let draftSchedule = null;
+  let editingDay = DAYS[new Date().getDay()];
+  let todaySlots = [];
+
+  /* ---------------- Persistence (best-effort; falls back to in-memory) */
+  async function loadSchedule(){
+    try{
+      let raw = null;
+      try{ raw = window.localStorage.getItem(STORAGE_KEY); }catch(e){}
+      if (!raw && window.storage){
+        const res = await window.storage.get(STORAGE_KEY, false);
+        if (res && res.value) raw = res.value;
+      }
+      if (raw){
+        const parsed = JSON.parse(raw);
+        DAYS.forEach(d => { if (!Array.isArray(parsed[d])) parsed[d] = []; });
+        weeklySchedule = parsed;
+      }
+    }catch(e){ /* keep default */ }
+    refreshToday();
+    render();
+  }
+  async function saveSchedule(){
+    const data = JSON.stringify(weeklySchedule);
+    try{ window.localStorage.setItem(STORAGE_KEY, data); }catch(e){}
+    try{ if (window.storage) await window.storage.set(STORAGE_KEY, data, false); }catch(e){}
+  }
+
+  /* ---------------- DOM refs ---------------- */
+  const flapRow      = document.getElementById('flapRow');
+  const dateRow       = document.getElementById('dateRow');
+  const greetingEl    = document.getElementById('greeting');
+  const gateSub       = document.getElementById('gateSub');
+  const statusCard    = document.getElementById('statusCard');
+  const statusPill    = document.getElementById('statusPill');
+  const statusLabel   = document.getElementById('statusLabel');
+  const statusMsg     = document.getElementById('statusMsg');
+  const ctaEl         = document.getElementById('cta');
+  const timelineEl    = document.getElementById('timeline');
+  const scheduleRange = document.getElementById('scheduleRange');
+  const themeToggle   = document.getElementById('themeToggle');
+  const pulseDot      = document.getElementById('pulseDot');
+  const panelTitle    = document.getElementById('panelTitle');
+  const prevDayBtn    = document.getElementById('prevDay');
+  const nextDayBtn    = document.getElementById('nextDay');
+  const todayBtn      = document.getElementById('todayBtn');
+  const swipeHint     = document.getElementById('swipeHint');
+
+  const editBtn       = document.getElementById('editBtn');
+  const editorOverlay = document.getElementById('editorOverlay');
+  const editorClose   = document.getElementById('editorClose');
+  const editorCancel  = document.getElementById('editorCancel');
+  const editorSave    = document.getElementById('editorSave');
+  const dayTabsEl      = document.getElementById('dayTabs');
+  const editorListEl   = document.getElementById('editorList');
+  const addPeriodBtn   = document.getElementById('addPeriodBtn');
+  const resetSampleBtn = document.getElementById('resetSampleBtn');
+
+  /* ---------------- Theme ---------------- */
+  function autoTheme(){ const h = new Date().getHours(); return (h < 6 || h >= 20) ? 'dark' : 'light'; }
+  let theme = autoTheme();
+  let themeManual = false;
+  function applyTheme(){
+    document.body.setAttribute('data-theme', theme);
+    themeToggle.textContent = theme === 'dark' ? '☾' : '☀';
+  }
+  themeToggle.addEventListener('click', () => { theme = theme === 'dark' ? 'light' : 'dark'; themeManual = true; applyTheme(); });
+  applyTheme();
+
+  /* ---------------- Helpers ---------------- */
+  function fmtDuration(ms){
+    const neg = ms < 0;
+    let s = Math.max(0, Math.round(Math.abs(ms) / 1000));
+    const h = Math.floor(s / 3600); s %= 3600;
+    const m = Math.floor(s / 60); s %= 60;
+    let out;
+    if (h > 0) out = `${h}h ${m}m`;
+    else if (m > 0) out = `${m}m ${s}s`;
+    else out = `${s}s`;
+    return neg ? `${out} over` : out;
+  }
+  function timeStr(d){ return d.toLocaleTimeString([], { hour:'2-digit', minute:'2-digit' }); }
+  function greetingWord(){
+    const h = new Date().getHours();
+    if (h < 5) return 'Working late';
+    if (h < 12) return 'Good morning';
+    if (h < 17) return 'Good afternoon';
+    if (h < 21) return 'Good evening';
+    return 'Good night';
+  }
+  function toDateOn(hhmm, base){
+    const [h,m] = hhmm.split(':').map(Number);
+    const d = new Date(base.getTime());
+    d.setHours(h, m, 0, 0);
+    return d;
+  }
+  function slotsFor(base){
+    const dayName = DAYS[base.getDay()];
+    return (weeklySchedule[dayName] || [])
+      .filter(s => s.start && s.end && s.label)
+      .map(s => ({ start: toDateOn(s.start, base), end: toDateOn(s.end, base), label: s.label }))
+      .sort((a,b) => a.start - b.start);
+  }
+  let viewOffset = 0;
+  let viewSlots = [];
+  let lastDateKey = new Date().toDateString();
+
+  /* ---------------- Split-flap clock ---------------- */
+  let prevDigits = ['', '', '', '', '', ''];
+  function buildFlaps(){
+    flapRow.innerHTML = '';
+    const groups = [ ['h0','h1'], ['m0','m1'], ['s0','s1'] ];
+    groups.forEach((pair, gi) => {
+      const g = document.createElement('div'); g.className = 'flap-group';
+      pair.forEach(id => {
+        const f = document.createElement('div'); f.className = 'flap'; f.id = 'flap-' + id;
+        const dgt = document.createElement('div'); dgt.className = 'digit'; dgt.textContent = '0';
+        f.appendChild(dgt); g.appendChild(f);
+      });
+      flapRow.appendChild(g);
+      if (gi < groups.length - 1){
+        const colon = document.createElement('div'); colon.className = 'flap-colon'; colon.textContent = ':';
+        flapRow.appendChild(colon);
+      }
+    });
+  }
+  buildFlaps();
+  function updateClock(now){
+    const hh = String(now.getHours()).padStart(2,'0');
+    const mm = String(now.getMinutes()).padStart(2,'0');
+    const ss = String(now.getSeconds()).padStart(2,'0');
+    const digits = [hh[0],hh[1],mm[0],mm[1],ss[0],ss[1]];
+    const ids = ['h0','h1','m0','m1','s0','s1'];
+    digits.forEach((d, i) => {
+      const flap = document.getElementById('flap-' + ids[i]);
+      const digitEl = flap.querySelector('.digit');
+      if (prevDigits[i] !== d){
+        digitEl.textContent = d;
+        flap.classList.remove('flip'); void flap.offsetWidth; flap.classList.add('flip');
+        prevDigits[i] = d;
+      }
+    });
+  }
+
+  /* ---------------- Accent colors ---------------- */
+  const ACCENTS = {
+    steel: { c:'var(--c-steel)', s:'var(--c-steel-soft)' },
+    moss:  { c:'var(--c-moss)',  s:'var(--c-moss-soft)'  },
+    amber: { c:'var(--c-amber)', s:'var(--c-amber-soft)' },
+  };
+  function setAccent(key){
+    statusCard.style.setProperty('--accent', ACCENTS[key].c);
+    statusCard.style.setProperty('--accent-soft', ACCENTS[key].s);
+    timelineEl.style.setProperty('--accent', ACCENTS[key].c);
+    timelineEl.style.setProperty('--accent-soft', ACCENTS[key].s);
+  }
+
+  /* ---------------- Build today's slots from weeklySchedule ---------------- */
+  function refreshToday(){
+    todaySlots = slotsFor(new Date());
+    refreshView();
+  }
+  function viewDate(){
+    const d = new Date();
+    d.setDate(d.getDate() + viewOffset);
+    return d;
+  }
+  function refreshView(dir){
+    const d = viewDate();
+    const dayName = DAYS[d.getDay()];
+    viewSlots = slotsFor(d);
+    buildTimeline();
+    let title;
+    if (viewOffset === 0) title = "Today's classes";
+    else if (viewOffset === 1) title = "Tomorrow's classes";
+    else if (viewOffset === -1) title = "Yesterday's classes";
+    else title = dayName + "'s classes";
+    panelTitle.textContent = title;
+    const dateTxt = d.toLocaleDateString([], { day:'2-digit', month:'short' });
+    gateSub.textContent = viewSlots.length
+      ? `${dayName}, ${dateTxt} · ${viewSlots.length} class${viewSlots.length > 1 ? 'es' : ''}`
+      : `${dayName}, ${dateTxt} · no classes`;
+    scheduleRange.textContent = viewSlots.length
+      ? `${timeStr(viewSlots[0].start)} – ${timeStr(viewSlots[viewSlots.length-1].end)}`
+      : '';
+    todayBtn.classList.toggle('hidden', viewOffset === 0);
+    swipeHint.textContent = viewOffset === 0 ? '‹ swipe ›' : (viewOffset > 0 ? `+${viewOffset} day${viewOffset>1?'s':''}` : `${viewOffset} day${viewOffset<-1?'s':''}`);
+    if (dir){
+      timelineEl.classList.remove('in-r','in-l');
+      void timelineEl.offsetWidth;
+      timelineEl.classList.add(dir > 0 ? 'in-r' : 'in-l');
+    }
+    updateTimeline(new Date());
+  }
+  function changeDay(delta){
+    viewOffset += delta;
+    refreshView(delta);
+  }
+
+  /* ---------------- Status logic ---------------- */
+  function computeStatus(now){
+    if (todaySlots.length === 0){
+      return { pill:'No classes', label:'Day Off', accent:'steel', msg:'Nothing scheduled today. Tap ✎ to add classes.' };
+    }
+    const current = todaySlots.find(s => now >= s.start && now < s.end);
+    if (current){
+      return { pill:'In class', label:'In Class', accent:'moss',
+        msg:`<b>${current.label}</b> · ends in <b>${fmtDuration(current.end - now)}</b>` };
+    }
+    const next = todaySlots.find(s => s.start > now);
+    if (next){
+      const prevEnd = [...todaySlots].reverse().find(s => s.end <= now);
+      if (prevEnd){
+        return { pill:'Free period', label:'Free Period', accent:'amber',
+          msg:`Next: <b>${next.label}</b> in <b>${fmtDuration(next.start - now)}</b>` };
+      }
+      return { pill:'Upcoming', label:'Upcoming Class', accent:'steel',
+        msg:`<b>${next.label}</b> starts in <b>${fmtDuration(next.start - now)}</b>` };
+    }
+    return { pill:'Done', label:'Day Complete', accent:'steel', msg:'No more classes today.' };
+  }
+
+  function renderCta(){
+    ctaEl.innerHTML = '';
+    if (todaySlots.length === 0){
+      const btn = document.createElement('button');
+      btn.className = 'btn btn-primary btn-block';
+      btn.textContent = 'Edit Schedule';
+      btn.onclick = openEditor;
+      ctaEl.appendChild(btn);
+    }
+  }
+
+  /* ---------------- Timetable list ---------------- */
+  function buildTimeline(){
+    timelineEl.innerHTML = '';
+    if (viewSlots.length === 0){
+      const div = document.createElement('div');
+      div.className = 't-empty';
+      div.textContent = viewOffset === 0 ? 'No classes on the schedule for today.' : 'No classes on this day.';
+      timelineEl.appendChild(div);
+      return;
+    }
+    viewSlots.forEach((s, i) => {
+      const li = document.createElement('li');
+      li.className = 't-item';
+      li.id = 't-' + i;
+      li.innerHTML = `
+        <div class="t-time">${timeStr(s.start)}–${timeStr(s.end)}</div>
+        <div class="t-rail"><div class="t-dot"></div><div class="t-line"></div></div>
+        <div class="t-label">${esc(s.label)}</div>`;
+      timelineEl.appendChild(li);
+    });
+    const lastLine = timelineEl.querySelector('.t-item:last-child .t-line');
+    if (lastLine) lastLine.style.display = 'none';
+  }
+  function updateTimeline(now){
+    viewSlots.forEach((s, i) => {
+      const li = document.getElementById('t-' + i);
+      if (!li) return;
+      li.classList.remove('past','current');
+      if (viewOffset !== 0) return;
+      if (now >= s.start && now < s.end) li.classList.add('current');
+      else if (s.end <= now) li.classList.add('past');
+    });
+  }
+
+  /* ---------------- Editor ---------------- */
+  function openEditor(){
+    draftSchedule = JSON.parse(JSON.stringify(weeklySchedule));
+    editingDay = DAYS[new Date().getDay()];
+    document.getElementById('nameInput').value = hasSavedName ? userName : '';
+    renderDayTabs();
+    renderEditorList();
+    editorOverlay.classList.add('open');
+  }
+  function closeEditor(){ editorOverlay.classList.remove('open'); draftSchedule = null; }
+
+  function renderDayTabs(){
+    dayTabsEl.innerHTML = '';
+    DAYS.forEach(day => {
+      const btn = document.createElement('button');
+      btn.className = 'day-tab' + (day === editingDay ? ' active' : '');
+      const count = (draftSchedule[day] || []).length;
+      btn.innerHTML = `${day.slice(0,3)}${count ? `<span class="day-count">${count}</span>` : ''}`;
+      btn.onclick = () => { editingDay = day; renderDayTabs(); renderEditorList(); };
+      dayTabsEl.appendChild(btn);
+    });
+  }
+
+  function renderEditorList(){
+    editorListEl.innerHTML = '';
+    const slots = draftSchedule[editingDay] || (draftSchedule[editingDay] = []);
+    if (slots.length === 0){
+      const empty = document.createElement('div');
+      empty.className = 'editor-empty';
+      empty.textContent = `No periods on ${editingDay}. Tap "+ Add period" to add one.`;
+      editorListEl.appendChild(empty);
+      return;
+    }
+    slots.forEach((slot, idx) => {
+      const row = document.createElement('div');
+      row.className = 'editor-row';
+      row.innerHTML = `
+        <input type="time" value="${slot.start || ''}" data-field="start" />
+        <input type="time" value="${slot.end || ''}" data-field="end" />
+        <button class="row-del" aria-label="Delete period">✕</button>
+        <input type="text" value="${slot.label ? slot.label.replace(/"/g,'&quot;') : ''}" placeholder="e.g. CN — VIB 403" data-field="label" />
+      `;
+      row.querySelector('[data-field="start"]').addEventListener('input', e => { slot.start = e.target.value; });
+      row.querySelector('[data-field="end"]').addEventListener('input', e => { slot.end = e.target.value; });
+      row.querySelector('[data-field="label"]').addEventListener('input', e => { slot.label = e.target.value; });
+      row.querySelector('.row-del').addEventListener('click', () => {
+        slots.splice(idx, 1);
+        renderDayTabs();
+        renderEditorList();
+      });
+      editorListEl.appendChild(row);
+    });
+  }
+
+  addPeriodBtn.addEventListener('click', () => {
+    const slots = draftSchedule[editingDay] || (draftSchedule[editingDay] = []);
+    slots.push({ start:'', end:'', label:'' });
+    renderDayTabs();
+    renderEditorList();
+  });
+
+  resetSampleBtn.addEventListener('click', () => {
+    draftSchedule[editingDay] = JSON.parse(JSON.stringify(DEFAULT_SCHEDULE[editingDay] || []));
+    renderDayTabs();
+    renderEditorList();
+  });
+
+  editBtn.addEventListener('click', openEditor);
+  editorClose.addEventListener('click', closeEditor);
+  editorCancel.addEventListener('click', closeEditor);
+  editorSave.addEventListener('click', () => {
+    const nm = document.getElementById('nameInput').value.trim();
+    userName = nm || 'Friend';
+    hasSavedName = !!nm;
+    try{ if (nm) window.localStorage.setItem(NAME_KEY, nm); else window.localStorage.removeItem(NAME_KEY); }catch(e){}
+    // drop incomplete rows silently
+    Object.keys(draftSchedule).forEach(day => {
+      draftSchedule[day] = (draftSchedule[day] || []).filter(s => s.start && s.end && s.label && s.start < s.end);
+    });
+    weeklySchedule = draftSchedule;
+    draftSchedule = null;
+    saveSchedule();
+    refreshToday();
+    render();
+    closeEditor();
+  });
+
+  /* ---------------- Master render (ticks every second) ---------------- */
+  function render(){
+    const now = new Date();
+    const dk = now.toDateString();
+    if (dk !== lastDateKey){ lastDateKey = dk; refreshToday(); }
+    updateClock(now);
+    dateRow.textContent = now.toLocaleDateString([], { weekday:'long', day:'2-digit', month:'long', year:'numeric' });
+    greetingEl.innerHTML = `${greetingWord()}, <span>${esc(userName)}</span>`;
+
+    if (!themeManual) { theme = autoTheme(); applyTheme(); }
+
+    const s = computeStatus(now);
+    setAccent(s.accent);
+    pulseDot.style.background = ACCENTS[s.accent].c;
+    pulseDot.style.boxShadow = `0 0 0 3px ${ACCENTS[s.accent].s}`;
+    statusPill.textContent = s.pill;
+    statusLabel.textContent = s.label;
+    statusMsg.innerHTML = s.msg;
+
+    renderCta();
+    updateTimeline(now);
+  }
+
+  prevDayBtn.addEventListener('click', () => changeDay(-1));
+  nextDayBtn.addEventListener('click', () => changeDay(1));
+  todayBtn.addEventListener('click', () => { const dir = viewOffset > 0 ? -1 : 1; viewOffset = 0; refreshView(dir); });
+
+  /* Swipe: left = next day, right = previous day */
+  (function(){
+    const appEl = document.getElementById('app');
+    let sx = 0, sy = 0, st = 0, tracking = false;
+    appEl.addEventListener('touchstart', e => {
+      if (editorOverlay.classList.contains('open')) { tracking = false; return; }
+      if (e.target.closest && e.target.closest('input, button')) { tracking = false; return; }
+      const t = e.touches[0];
+      sx = t.clientX; sy = t.clientY; st = Date.now(); tracking = true;
+    }, { passive:true });
+    appEl.addEventListener('touchend', e => {
+      if (!tracking) return;
+      tracking = false;
+      const t = e.changedTouches[0];
+      const dx = t.clientX - sx, dy = t.clientY - sy;
+      if (Date.now() - st > 700) return;
+      if (Math.abs(dx) < 55 || Math.abs(dx) < Math.abs(dy) * 1.5) return;
+      changeDay(dx < 0 ? 1 : -1);
+    }, { passive:true });
+    document.addEventListener('keydown', e => {
+      if (editorOverlay.classList.contains('open')) return;
+      if (e.key === 'ArrowLeft') changeDay(-1);
+      if (e.key === 'ArrowRight') changeDay(1);
+    });
+  })();
+
+  greetingEl.addEventListener('click', openEditor);
+  loadSchedule().then(() => { if (!hasSavedName) openEditor(); });
+  setInterval(render, 1000);
+})();
+</script>
+<script>
+if ('serviceWorker' in navigator){
+  window.addEventListener('load', function(){
+    navigator.serviceWorker.register('sw.js').catch(function(){});
+  });
+}
+</script>
+</body>
+</html>
