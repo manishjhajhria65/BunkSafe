@@ -3,13 +3,15 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, viewport-fit=cover" />
-<title>Timetable Webgate</title>
+<title>BunkSafe</title>
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="Webgate">
+<meta name="apple-mobile-web-app-title" content="BunkSafe">
 <meta name="theme-color" content="#101317">
 <link rel="manifest" href="manifest.json">
+<link rel="icon" type="image/png" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-512.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -188,7 +190,10 @@
     background:var(--surface-2); color:var(--c-rust); font-size:15px; cursor:pointer;
   }
   .editor-empty{ text-align:center; color:var(--text-faint); font-size:13px; padding:24px 0; }
+  .editor-note{ min-height:18px; padding-top:8px; font-size:12.5px; font-weight:600; color:var(--c-moss); text-align:center; }
   .editor-actions{ display:flex; gap:8px; padding-top:10px; }
+  #scanBtn{ color:var(--c-steel); border-color:var(--c-steel); }
+  #scanBtn:disabled{ opacity:.5; }
   .name-label{ font-family:var(--font-mono); font-size:10.5px; letter-spacing:.12em; text-transform:uppercase; color:var(--text-faint); margin-top:8px; }
   .name-input{ width:100%; margin-top:4px; padding:11px 12px; border-radius:10px; border:1px solid var(--border); background:var(--surface); color:var(--text); font-size:15px; font-weight:600; }
   .greeting{ cursor:pointer; }
@@ -201,7 +206,7 @@
       <div class="notch"></div>
 
       <div class="topbar">
-        <div class="eyebrow"><span class="dot" id="pulseDot"></span>Timetable Webgate</div>
+        <div class="eyebrow"><span class="dot" id="pulseDot"></span>BunkSafe</div>
         <div class="topbar-icons">
           <button class="icon-btn" id="editBtn" aria-label="Edit schedule">✎</button>
           <button class="icon-btn" id="themeToggle" aria-label="Toggle theme">◐</button>
@@ -234,7 +239,7 @@
       </div>
       <ul class="timeline" id="timeline"></ul>
 
-      <footer>Swipe left or right to change day. Tap ✎ to edit your timetable.</footer>
+      <footer>Swipe left or right to change day. Tap ✎ to scan or edit your timetable.</footer>
 
       <!-- ---------------- Editor overlay ---------------- -->
       <div class="editor-overlay" id="editorOverlay">
@@ -246,9 +251,11 @@
         <input type="text" id="nameInput" class="name-input" maxlength="20" placeholder="Enter your name" />
         <div class="day-tabs" id="dayTabs"></div>
         <div class="editor-list" id="editorList"></div>
+        <div class="editor-note" id="editorNote"></div>
         <div class="editor-actions">
           <button class="btn btn-ghost btn-sm" id="addPeriodBtn">+ Add period</button>
-          <button class="btn btn-ghost btn-sm" id="resetSampleBtn">Load sample</button>
+          <button class="btn btn-ghost btn-sm" id="scanBtn">📷 Scan from image</button>
+          <input type="file" id="scanInput" accept="image/*" hidden />
         </div>
         <div class="editor-footer">
           <button class="btn btn-secondary" id="editorCancel" style="flex:1;">Cancel</button>
@@ -270,44 +277,9 @@
   const DAYS = ["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"];
   const STORAGE_KEY = "weekly-timetable-v1";
 
-  /* ---------------- Seed data (best-effort read of your uploaded
-     timetable — double check it in the editor and fix anything off) */
-  const DEFAULT_SCHEDULE = {
-    Sunday: [],
-    Monday: [
-      { start:"08:00", end:"09:40", label:"Prompt Engg. — NYB 005" },
-      { start:"09:40", end:"10:30", label:"CN — VIB 403" },
-      { start:"12:05", end:"12:50", label:"DMS — NYB 001" },
-    ],
-    Tuesday: [
-      { start:"08:00", end:"08:50", label:"DMS — NYB 313" },
-      { start:"09:40", end:"11:20", label:"Python Lab — VIB 411" },
-      { start:"11:20", end:"12:05", label:"OS — VIB 212" },
-    ],
-    Wednesday: [
-      { start:"08:00", end:"09:40", label:"Prompt Engg. — NYB 005" },
-      { start:"10:30", end:"11:20", label:"DMS — VIB 212" },
-      { start:"11:20", end:"12:05", label:"Python — VIB 212" },
-    ],
-    Thursday: [
-      { start:"08:00", end:"09:40", label:"Python Lab — VIB 206" },
-      { start:"10:30", end:"11:20", label:"CN — NYB 313" },
-      { start:"11:20", end:"12:05", label:"OS — NYB 313" },
-      { start:"12:05", end:"12:50", label:"SE — VIB 312" },
-    ],
-    Friday: [
-      { start:"08:00", end:"08:50", label:"OS — NYB 006" },
-      { start:"08:50", end:"09:40", label:"Python — NYB 313" },
-      { start:"10:30", end:"11:20", label:"SE — VIB 312" },
-      { start:"11:20", end:"12:50", label:"CN Lab — VIB 403" },
-    ],
-    Saturday: [
-      { start:"10:30", end:"11:20", label:"CN — VIB 212" },
-      { start:"11:20", end:"12:50", label:"OS Lab — VIB 411" },
-    ],
-  };
+  const EMPTY_SCHEDULE = () => { const o = {}; DAYS.forEach(d => o[d] = []); return o; };
 
-  let weeklySchedule = JSON.parse(JSON.stringify(DEFAULT_SCHEDULE));
+  let weeklySchedule = EMPTY_SCHEDULE();
   let draftSchedule = null;
   let editingDay = DAYS[new Date().getDay()];
   let todaySlots = [];
@@ -335,6 +307,238 @@
     try{ window.localStorage.setItem(STORAGE_KEY, data); }catch(e){}
     try{ if (window.storage) await window.storage.set(STORAGE_KEY, data, false); }catch(e){}
   }
+
+/* ---------- Image clean-up before OCR: threshold + remove table grid lines ---------- */
+function cleanForOCR(gray, w, h, flip){
+  const n = w * h;
+  const hist = new Array(256).fill(0);
+  for (let i = 0; i < n; i++) hist[gray[i]]++;
+  let sum = 0; for (let t = 0; t < 256; t++) sum += t * hist[t];
+  let sumB = 0, wB = 0, best = -1, thr = 128;
+  for (let t = 0; t < 256; t++){
+    wB += hist[t]; if (!wB) continue;
+    const wF = n - wB; if (!wF) break;
+    sumB += t * hist[t];
+    const mB = sumB / wB, mF = (sum - sumB) / wF;
+    const between = wB * wF * (mB - mF) * (mB - mF);
+    if (between > best){ best = between; thr = t; }
+  }
+  let dark = new Uint8Array(n), darkCount = 0;
+  for (let i = 0; i < n; i++){ if (gray[i] <= thr){ dark[i] = 1; darkCount++; } }
+  if (flip || darkCount > n * 0.5){ for (let i = 0; i < n; i++) dark[i] = dark[i] ? 0 : 1; }   // light text on dark page (or forced second pass)
+
+  const L = Math.max(50, Math.round(Math.max(w, h) * 0.03));
+  const kill = new Uint8Array(n);
+  for (let y = 0; y < h; y++){
+    let x = 0;
+    while (x < w){
+      if (!dark[y * w + x]){ x++; continue; }
+      let e = x; while (e < w && dark[y * w + e]) e++;
+      if (e - x >= L) for (let k = x; k < e; k++) kill[y * w + k] = 1;
+      x = e;
+    }
+  }
+  for (let x = 0; x < w; x++){
+    let y = 0;
+    while (y < h){
+      if (!dark[y * w + x]){ y++; continue; }
+      let e = y; while (e < h && dark[e * w + x]) e++;
+      if (e - y >= L) for (let k = y; k < e; k++) kill[k * w + x] = 1;
+      y = e;
+    }
+  }
+  const out = new Uint8ClampedArray(n).fill(255);
+  for (let y = 0; y < h; y++) for (let x = 0; x < w; x++){
+    const i = y * w + x;
+    if (!dark[i]) continue;
+    // also drop dark pixels hugging a removed line (anti-aliasing edge)
+    let near = kill[i];
+    if (!near){
+      if ((x > 0 && kill[i-1]) || (x < w-1 && kill[i+1]) || (y > 0 && kill[i-w]) || (y < h-1 && kill[i+w])) near = 1;
+    }
+    if (!near) out[i] = 0;
+  }
+  return out;
+}
+
+
+/* ---------- Timetable image parser (works on OCR word boxes) ---------- */
+function parseTimetableWords(rawWords){
+  const DAY_PATTERNS = [
+    ['Sunday',    /^sun(day)?\.?$/i],
+    ['Monday',    /^mon(day)?\.?$/i],
+    ['Tuesday',   /^tue(s|sday)?\.?$/i],
+    ['Wednesday', /^wed(nesday)?\.?$/i],
+    ['Thursday',  /^thu(r|rs|rsday)?\.?$/i],
+    ['Friday',    /^fri(day)?\.?$/i],
+    ['Saturday',  /^sat(urday)?\.?$/i]
+  ];
+  const DAY_NAMES = DAY_PATTERNS.map(d => d[0]);
+  const words = rawWords
+    .map(w => ({ text:String(w.text||'').trim(), x0:w.x0, y0:w.y0, x1:w.x1, y1:w.y1, conf:w.conf }))
+    .filter(w => w.text && isFinite(w.x0) && isFinite(w.y0) && w.x1 > w.x0 && w.y1 > w.y0 && !/^[|_\-–—=~.,:;'"`!\[\]{}()\\\/]+$/.test(w.text));
+  if (words.length < 8) throw new Error('I could not read enough text from this image.');
+
+  // 1. day labels
+  const cands = [];
+  words.forEach(w => {
+    const t = w.text.replace(/[^A-Za-z.]/g,'');
+    for (const [name, re] of DAY_PATTERNS){ if (re.test(t)){ cands.push({ day:name, box:w }); break; } }
+  });
+  const dayNamesFound = new Set(cands.map(c => c.day));
+  if (dayNamesFound.size < 2) throw new Error('I could not find day names (Mon, Tue, Wed…) in the image.');
+
+  const cx = b => (b.x0 + b.x1) / 2, cy = b => (b.y0 + b.y1) / 2;
+  const spreadX = Math.max(...cands.map(c => cx(c.box))) - Math.min(...cands.map(c => cx(c.box)));
+  const spreadY = Math.max(...cands.map(c => cy(c.box))) - Math.min(...cands.map(c => cy(c.box)));
+  const daysAreRows = spreadY >= spreadX;
+  const dayAxis = daysAreRows ? 'y' : 'x';
+  const timeAxis = daysAreRows ? 'x' : 'y';
+  const lo = (b, ax) => ax === 'x' ? b.x0 : b.y0;
+  const hi = (b, ax) => ax === 'x' ? b.x1 : b.y1;
+  const mid = (b, ax) => (lo(b, ax) + hi(b, ax)) / 2;
+
+  // one label per day: the one nearest the start of the time axis
+  const labels = [];
+  dayNamesFound.forEach(day => {
+    const list = cands.filter(c => c.day === day).sort((a,b) => mid(a.box, timeAxis) - mid(b.box, timeAxis));
+    labels.push({ day, box:list[0].box });
+  });
+  labels.sort((a,b) => mid(a.box, dayAxis) - mid(b.box, dayAxis));
+  const labelSet = new Set(labels.map(l => l.box));
+
+  // day bands
+  const centers = labels.map(l => mid(l.box, dayAxis));
+  const bandEdges = [];
+  for (let i = 0; i <= labels.length; i++){
+    if (i === 0) bandEdges.push(centers[0] - (centers[1] - centers[0]) / 2);
+    else if (i === labels.length) bandEdges.push(centers[i-1] + (centers[i-1] - centers[i-2]) / 2);
+    else bandEdges.push((centers[i-1] + centers[i]) / 2);
+  }
+  const firstBand = bandEdges[0], lastBand = bandEdges[bandEdges.length - 1];
+
+  // 2. time header
+  const TIME_RE = /(\d{1,2})\s*[:.;]\s*(\d{2})/g;
+  const items = [];
+  let twoInWord = false;
+  words.forEach(w => {
+    if (labelSet.has(w)) return;
+    if (mid(w, dayAxis) >= firstBand) return;
+    const text = w.text; let m, n = 0; const found = [];
+    TIME_RE.lastIndex = 0;
+    while ((m = TIME_RE.exec(text)) !== null){
+      let h = parseInt(m[1], 10), mi = parseInt(m[2], 10);
+      if (h > 23 || mi > 59) continue;
+      if (h >= 1 && h <= 6) h += 12;
+      found.push({ value:h * 60 + mi, frac:(m.index + m[0].length / 2) / text.length });
+    }
+    if (found.length >= 2) twoInWord = true;
+    found.forEach(f => items.push({ value:f.value, pos:lo(w, timeAxis) + f.frac * (hi(w, timeAxis) - lo(w, timeAxis)) }));
+  });
+  if (items.length < 2) throw new Error('I could not find period times (like 08:00) above or beside the classes.');
+
+  const byValue = new Map();
+  items.forEach(it => { if (!byValue.has(it.value)) byValue.set(it.value, []); byValue.get(it.value).push(it.pos); });
+  const values = [...byValue.keys()].sort((a,b) => a - b);
+  const meanPos = v => { const a = byValue.get(v); return a.reduce((s,x) => s + x, 0) / a.length; };
+  const rangeMode = twoInWord || [...byValue.values()].some(a => a.length >= 2);
+
+  let cols = []; // {start,end,lo,hi}
+  if (rangeMode){
+    const P = values.map(meanPos);
+    const m = values.length - 1;
+    if (m < 2) throw new Error('I found too few period times to build a grid.');
+    const b = new Array(m + 1);
+    for (let k = 1; k <= m - 1; k++) b[k] = P[k];
+    b[0] = m >= 3 ? b[1] - (b[2] - b[1]) : 2 * P[0] - b[1];
+    b[m] = m >= 3 ? b[m-1] + (b[m-1] - b[m-2]) : 2 * P[m] - b[m-1];
+    for (let k = 0; k < m; k++) cols.push({ start:values[k], end:values[k+1], lo:b[k], hi:b[k+1] });
+  } else {
+    const P = values.map(meanPos);
+    const n = values.length;
+    if (n < 2) throw new Error('I found too few period times to build a grid.');
+    const durs = []; for (let k = 0; k < n - 1; k++) durs.push(values[k+1] - values[k]);
+    durs.sort((a,b) => a - b);
+    const medDur = durs[Math.floor(durs.length / 2)] || 50;
+    const b = new Array(n + 1);
+    for (let k = 1; k < n; k++) b[k] = (P[k-1] + P[k]) / 2;
+    b[0] = P[0] - (P[1] - P[0]) / 2;
+    b[n] = P[n-1] + (P[n-1] - P[n-2]) / 2;
+    for (let k = 0; k < n; k++) cols.push({ start:values[k], end:k < n - 1 ? values[k+1] : values[k] + medDur, lo:b[k], hi:b[k+1] });
+  }
+  cols.sort((a,b) => a.lo - b.lo);
+  const gridLo = cols[0].lo, gridHi = cols[cols.length - 1].hi;
+
+  // 3. body words
+  const body = words.filter(w => !labelSet.has(w)
+    && mid(w, dayAxis) >= firstBand && mid(w, dayAxis) <= lastBand
+    && mid(w, timeAxis) >= gridLo && mid(w, timeAxis) <= gridHi);
+  const heights = body.map(w => w.y1 - w.y0).sort((a,b) => a - b);
+  const H = heights.length ? heights[Math.floor(heights.length / 2)] : 14;
+  const gap = (a, b, ax) => Math.max(0, Math.max(lo(a, ax) - hi(b, ax), lo(b, ax) - hi(a, ax)));
+
+  const fmt = v => String(Math.floor(v / 60)).padStart(2,'0') + ':' + String(v % 60).padStart(2,'0');
+  const SKIP = /^(lunch|break|recess|interval|short break|lunch break)$/i;
+  const schedule = {}; DAY_NAMES.forEach(d => schedule[d] = []);
+  let total = 0;
+
+  labels.forEach((lab, li) => {
+    const bandLo = bandEdges[li], bandHi = bandEdges[li + 1];
+    const ws = body.filter(w => mid(w, dayAxis) >= bandLo && mid(w, dayAxis) < bandHi);
+    // union-find clusters
+    const parent = ws.map((_, i) => i);
+    const find = i => parent[i] === i ? i : (parent[i] = find(parent[i]));
+    for (let i = 0; i < ws.length; i++) for (let j = i + 1; j < ws.length; j++){
+      const gx = gap(ws[i], ws[j], 'x'), gy = gap(ws[i], ws[j], 'y');
+      const sameLine = gy < 0.3 * H && gx < 1.1 * H;      // words next to each other
+      const stacked  = gx === 0 && gy < 1.4 * H;           // lines of one cell, one under another
+      if (sameLine || stacked) parent[find(i)] = find(j);
+    }
+    const groups = new Map();
+    ws.forEach((w, i) => { const r = find(i); if (!groups.has(r)) groups.set(r, []); groups.get(r).push(w); });
+
+    groups.forEach(g => {
+      const box = { x0:Math.min(...g.map(w => w.x0)), y0:Math.min(...g.map(w => w.y0)), x1:Math.max(...g.map(w => w.x1)), y1:Math.max(...g.map(w => w.y1)) };
+      // text: lines top-to-bottom, words left-to-right
+      const sorted = g.slice().sort((a,b) => cy(a) - cy(b));
+      const lines = []; 
+      sorted.forEach(w => {
+        const last = lines[lines.length - 1];
+        if (last && Math.abs(cy(w) - last.cy) <= 0.6 * H){ last.ws.push(w); last.cy = (last.cy * (last.ws.length - 1) + cy(w)) / last.ws.length; }
+        else lines.push({ cy:cy(w), ws:[w] });
+      });
+      const lineTexts = lines.map(l => l.ws.sort((a,b) => a.x0 - b.x0).map(w => w.text).join(' ')
+        .replace(/[|_\[\]{}\\~]/g,' ').replace(/\s+/g,' ').trim()).filter(Boolean);
+      if (!lineTexts.length) return;
+      let label;
+      const lastLine = lineTexts[lineTexts.length - 1];
+      if (lineTexts.length > 1 && /\d/.test(lastLine)) label = lineTexts.slice(0, -1).join(' ') + ' — ' + lastLine;
+      else label = lineTexts.join(' ');
+      label = label.replace(/^[\s\-–—:.,]+|[\s\-–—:.,]+$/g,'');
+      if (label.length < 2 || !/[A-Za-z0-9]/.test(label) || SKIP.test(label)) return;
+
+      // which columns does this cluster cover?
+      const cl = lo(box, timeAxis), ch = hi(box, timeAxis), cw = ch - cl;
+      const covered = [];
+      cols.forEach((c, k) => {
+        const ov = Math.min(ch, c.hi) - Math.max(cl, c.lo);
+        if (ov > 0 && ov >= 0.3 * Math.min(c.hi - c.lo, cw)) covered.push(k);
+      });
+      if (!covered.length){
+        const m = (cl + ch) / 2; const k = cols.findIndex(c => m >= c.lo && m < c.hi);
+        if (k < 0) return; covered.push(k);
+      }
+      const a = Math.min(...covered), z = Math.max(...covered);
+      schedule[lab.day].push({ start:fmt(cols[a].start), end:fmt(cols[z].end), label });
+      total++;
+    });
+    schedule[lab.day].sort((a,b) => a.start < b.start ? -1 : a.start > b.start ? 1 : 0);
+  });
+
+  if (!total) throw new Error('I found the grid but could not read any class names.');
+  return { schedule, daysFound:labels.map(l => l.day), total, periods:cols.length, orientation:daysAreRows ? 'rows' : 'columns' };
+}
+
 
   /* ---------------- DOM refs ---------------- */
   const flapRow      = document.getElementById('flapRow');
@@ -364,7 +568,6 @@
   const dayTabsEl      = document.getElementById('dayTabs');
   const editorListEl   = document.getElementById('editorList');
   const addPeriodBtn   = document.getElementById('addPeriodBtn');
-  const resetSampleBtn = document.getElementById('resetSampleBtn');
 
   /* ---------------- Theme ---------------- */
   function autoTheme(){ const h = new Date().getHours(); return (h < 6 || h >= 20) ? 'dark' : 'light'; }
@@ -510,7 +713,7 @@
   /* ---------------- Status logic ---------------- */
   function computeStatus(now){
     if (todaySlots.length === 0){
-      return { pill:'No classes', label:'Day Off', accent:'steel', msg:'Nothing scheduled today. Tap ✎ to add classes.' };
+      return { pill:'No classes', label:'Day Off', accent:'steel', msg:'Nothing scheduled today. Tap ✎ to scan or add your timetable.' };
     }
     const current = todaySlots.find(s => now >= s.start && now < s.end);
     if (current){
@@ -636,10 +839,120 @@
     renderEditorList();
   });
 
-  resetSampleBtn.addEventListener('click', () => {
-    draftSchedule[editingDay] = JSON.parse(JSON.stringify(DEFAULT_SCHEDULE[editingDay] || []));
-    renderDayTabs();
-    renderEditorList();
+  /* ---------------- Scan timetable from an image ---------------- */
+  const scanBtn   = document.getElementById('scanBtn');
+  const scanInput = document.getElementById('scanInput');
+  const editorNote = document.getElementById('editorNote');
+  function setNote(msg, kind){
+    editorNote.textContent = msg || '';
+    editorNote.style.color = kind === 'err' ? 'var(--c-rust)' : kind === 'warn' ? 'var(--c-amber)' : 'var(--c-moss)';
+  }
+  let tessPromise = null, tessWorker = null, progressHandler = null;
+  function loadTesseract(){
+    if (window.Tesseract) return Promise.resolve();
+    if (!tessPromise) tessPromise = new Promise((res, rej) => {
+      const s = document.createElement('script');
+      s.src = 'https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js';
+      s.onload = res;
+      s.onerror = () => { tessPromise = null; rej(new Error('NETWORK')); };
+      document.head.appendChild(s);
+    });
+    return tessPromise;
+  }
+  async function getWorker(){
+    if (!tessWorker){
+      tessWorker = await window.Tesseract.createWorker('eng', 1, { logger: m => { if (progressHandler) progressHandler(m); } });
+      await tessWorker.setParameters({ tessedit_pageseg_mode: '11' });
+    }
+    return tessWorker;
+  }
+  function loadImage(file){
+    return new Promise((res, rej) => {
+      const url = URL.createObjectURL(file);
+      const img = new Image();
+      img.onload = () => res({ img, url });
+      img.onerror = () => { URL.revokeObjectURL(url); rej(new Error('BADIMAGE')); };
+      img.src = url;
+    });
+  }
+  async function prepareGray(file){
+    const { img, url } = await loadImage(file);
+    const iw = img.naturalWidth, ih = img.naturalHeight;
+    const sc = Math.min(2.5, 2400 / Math.max(iw, ih));
+    const w = Math.round(iw * sc), h = Math.round(ih * sc);
+    const c = document.createElement('canvas'); c.width = w; c.height = h;
+    const ctx = c.getContext('2d', { willReadFrequently:true });
+    ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, w, h);
+    ctx.drawImage(img, 0, 0, w, h);
+    URL.revokeObjectURL(url);
+    const d = ctx.getImageData(0, 0, w, h).data;
+    const gray = new Uint8ClampedArray(w * h);
+    for (let i = 0, j = 0; i < gray.length; i++, j += 4) gray[i] = (d[j] * 299 + d[j+1] * 587 + d[j+2] * 114) / 1000;
+    return { gray, w, h };
+  }
+  function grayToCanvas(g, w, h){
+    const c = document.createElement('canvas'); c.width = w; c.height = h;
+    const ctx = c.getContext('2d');
+    const im = ctx.createImageData(w, h);
+    for (let i = 0, j = 0; i < g.length; i++, j += 4){ im.data[j] = im.data[j+1] = im.data[j+2] = g[i]; im.data[j+3] = 255; }
+    ctx.putImageData(im, 0, 0);
+    return c;
+  }
+  async function ocrWords(worker, gray, w, h, flip){
+    const canvas = grayToCanvas(cleanForOCR(gray, w, h, flip), w, h);
+    const { data } = await worker.recognize(canvas);
+    return (data.words || []).map(x => ({ text:x.text, x0:x.bbox.x0, y0:x.bbox.y0, x1:x.bbox.x1, y1:x.bbox.y1, conf:x.confidence }));
+  }
+  function isDayOrTime(w){
+    return /\d\s*[:.;]\s*\d{2}/.test(w.text) || /^(mon|tue|wed|thu|fri|sat|sun)/i.test(w.text.replace(/[^A-Za-z]/g, ''));
+  }
+  function mergeExtra(first, extra){
+    const have = first.filter(isDayOrTime);
+    const inside = (w, o) => { const cx = (w.x0 + w.x1) / 2, cy = (w.y0 + w.y1) / 2; return cx >= o.x0 && cx <= o.x1 && cy >= o.y0 && cy <= o.y1; };
+    return first.concat(extra.filter(w => isDayOrTime(w) && !have.some(o => inside(w, o))));
+  }
+  function tryParse(words){
+    try{ return parseTimetableWords(words); }
+    catch(e){ e.isParse = true; throw e; }
+  }
+
+  scanBtn.addEventListener('click', () => scanInput.click());
+  scanInput.addEventListener('change', async () => {
+    const file = scanInput.files && scanInput.files[0];
+    scanInput.value = '';
+    if (!file) return;
+    scanBtn.disabled = true;
+    try{
+      setNote('Loading the reader… (needs internet the first time)', 'warn');
+      await loadTesseract();
+      const worker = await getWorker();
+      progressHandler = m => {
+        if (m.status === 'recognizing text') setNote('Reading your timetable… ' + Math.round((m.progress || 0) * 100) + '%', 'warn');
+      };
+      setNote('Preparing image…', 'warn');
+      const { gray, w, h } = await prepareGray(file);
+      const words = await ocrWords(worker, gray, w, h, false);
+      let result;
+      try{ result = tryParse(words); }
+      catch(e1){
+        if (!e1.isParse) throw e1;
+        setNote('Trying a second pass…', 'warn');
+        const extra = await ocrWords(worker, gray, w, h, true);
+        result = tryParse(mergeExtra(words, extra));
+      }
+      result.daysFound.forEach(d => { draftSchedule[d] = result.schedule[d]; });
+      renderDayTabs();
+      renderEditorList();
+      setNote('Found ' + result.total + ' class' + (result.total > 1 ? 'es' : '') + ' on ' + result.daysFound.length + ' days. Please check each day, fix any mistakes, then tap Save Timetable.', 'ok');
+    }catch(err){
+      if (err && err.isParse) setNote(err.message + ' Try a clearer, straight-on screenshot or photo, or add classes by hand.', 'err');
+      else if (err && err.message === 'NETWORK') setNote('Could not load the reader. Check your internet and try again.', 'err');
+      else if (err && err.message === 'BADIMAGE') setNote('That file could not be opened as an image.', 'err');
+      else setNote('Something went wrong while reading the image. Please try again.', 'err');
+    }finally{
+      scanBtn.disabled = false;
+      progressHandler = null;
+    }
   });
 
   editBtn.addEventListener('click', openEditor);
