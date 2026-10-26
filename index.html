@@ -3,16 +3,19 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, viewport-fit=cover" />
-<title>Timetable Webgate</title>
+<title>BunkSafe</title>
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="Webgate">
+<meta name="apple-mobile-web-app-title" content="BunkSafe">
 <meta name="theme-color" content="#101317">
 <link rel="manifest" href="manifest.json">
+<link rel="icon" type="image/png" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-512.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
+<noscript><link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet"></noscript>
 <style>
   :root{
     --c-steel:#4C6FA6; --c-steel-soft:#4C6FA61a;
@@ -150,6 +153,66 @@
   @keyframes slideInL{ from{ transform:translateX(-42px); opacity:0; } to{ transform:none; opacity:1; } }
   .timeline.in-r{ animation:slideInR .25s ease; }
   .timeline.in-l{ animation:slideInL .25s ease; }
+
+  /* ---------- Academic calendar ---------- */
+  .cal-overlay{
+    display:none; position:absolute; top:0; right:0; bottom:0; left:0; z-index:40;
+    background:var(--bg-1); flex-direction:column; padding:16px 18px 18px; padding-bottom:calc(18px + env(safe-area-inset-bottom));
+  }
+  .cal-overlay.open{ display:flex; }
+  @media (max-width:639px){ .cal-overlay{ position:fixed; } }
+  .cal-head{ display:flex; align-items:center; justify-content:space-between; gap:8px; margin-bottom:6px; }
+  .cal-head h2{ font-size:17px; margin:0; flex:1; text-align:center; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .cal-body{ flex:1; overflow-y:auto; display:flex; flex-direction:column; gap:10px; padding:6px 0 10px; }
+  .cal-body textarea.name-input{ resize:vertical; font-family:inherit; font-size:13.5px; }
+  .cal-body select.name-input{ appearance:auto; }
+  .c-card{ background:var(--surface); border:1px solid var(--border); border-radius:var(--radius-md); padding:14px; display:flex; flex-direction:column; gap:8px; }
+  .c-center{ align-items:center; text-align:center; }
+  .c-h{ font-weight:800; font-size:16px; }
+  .c-h2{ font-size:13px; font-weight:700; margin:8px 2px 0; letter-spacing:.02em; }
+  .c-p{ font-size:13px; color:var(--text-dim); line-height:1.45; }
+  .c-empty{ text-align:center; color:var(--text-faint); font-size:13.5px; padding:18px 8px; }
+  .c-foot{ font-size:11px; color:var(--text-faint); line-height:1.5; text-align:center; padding:6px 4px 2px; }
+  .c-facts{ display:grid; grid-template-columns:repeat(3,1fr); gap:8px; }
+  .c-facts > div{ background:var(--surface); border:1px solid var(--border); border-radius:var(--radius-md); padding:10px 9px; display:flex; flex-direction:column; gap:2px; min-width:0; }
+  .c-facts span{ font-family:var(--font-mono); font-size:9.5px; letter-spacing:.08em; text-transform:uppercase; color:var(--text-faint); }
+  .c-facts b{ font-size:14px; font-weight:800; }
+  .c-facts small{ font-size:11px; color:var(--text-dim); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .c-warn{ padding:10px 12px; border-radius:10px; font-size:12.5px; font-weight:600; line-height:1.4; }
+  .c-warn.warn{ background:var(--c-amber-soft); color:var(--c-amber); }
+  .c-warn.info{ background:var(--c-steel-soft); color:var(--c-steel); }
+  .c-sub{ display:flex; justify-content:space-between; align-items:center; gap:14px; width:100%; text-align:left; background:var(--surface); border:1px solid var(--border); border-radius:var(--radius-md); padding:14px; color:var(--text); cursor:pointer; }
+  .c-sub-l{ flex:1; min-width:0; display:flex; flex-direction:column; gap:4px; }
+  .c-sub-n{ font-weight:800; font-size:15px; }
+  .c-sub-s{ font-size:12px; color:var(--text-dim); }
+  .c-bar{ height:6px; border-radius:99px; background:var(--border); overflow:hidden; margin:2px 0; }
+  .c-bar i{ display:block; height:100%; background:var(--c-steel); border-radius:99px; }
+  .c-big{ font-family:var(--font-mono); font-size:38px; font-weight:700; color:var(--c-moss); line-height:1; }
+  .c-big2{ font-family:var(--font-mono); font-size:56px; font-weight:700; color:var(--c-moss); line-height:1; }
+  .c-line{ display:flex; justify-content:space-between; align-items:center; gap:10px; background:var(--surface); border:1px solid var(--border); border-radius:10px; padding:9px 12px; font-size:13px; }
+  .c-ex{ flex-direction:column; align-items:flex-start; gap:4px; }
+  .c-tag{ font-size:11px; font-weight:700; padding:2px 8px; border-radius:999px; background:var(--border); color:var(--text-dim); white-space:nowrap; }
+  .c-tag.holiday, .c-tag.rule{ background:var(--c-rust-soft); color:var(--c-rust); }
+  .c-tag.exam, .c-tag.pending{ background:var(--c-amber-soft); color:var(--c-amber); }
+  .c-tag.event, .c-tag.mine{ background:var(--c-steel-soft); color:var(--c-steel); }
+  .c-tag.working{ background:var(--c-moss-soft); color:var(--c-moss); }
+  .c-list{ display:flex; flex-direction:column; gap:8px; }
+  .c-entry{ background:var(--surface); border:1px solid var(--border); border-radius:var(--radius-md); padding:12px; display:flex; flex-direction:column; gap:6px; }
+  .c-entry.past{ opacity:.55; }
+  .c-entry-top{ display:flex; gap:6px; align-items:center; flex-wrap:wrap; }
+  .c-entry-t{ font-size:14.5px; font-weight:700; }
+  .c-row2{ display:flex; gap:8px; align-items:center; }
+  .c-row2 .btn{ flex:1; }
+  .c-row2 .btn-sm{ flex:0 0 auto; }
+  .c-grid2{ display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:8px; align-items:end; }
+  .c-grid2 > *, .c-grid3 > *{ min-width:0; }
+  .cal-body input[type=date], .cal-body input[type=time]{ min-width:0; width:100%; max-width:100%; }
+  .c-grid3{ display:grid; grid-template-columns:1fr 1.5fr auto; gap:8px; align-items:center; }
+  .c-check{ display:flex; gap:8px; align-items:center; font-size:13.5px; color:var(--text); }
+  .c-check input{ width:18px; height:18px; flex:0 0 auto; }
+  .c-link{ background:none; border:none; color:var(--c-steel); font-weight:700; font-size:12.5px; text-decoration:underline; cursor:pointer; padding:0 4px; }
+  .c-msg{ min-height:18px; font-size:12.5px; font-weight:600; text-align:center; color:var(--c-moss); }
+  .c-msg.err{ color:var(--c-rust); } .c-msg.warn{ color:var(--c-amber); }
   footer{ text-align:center; font-size:11px; color:var(--text-faint); padding-top:2px; padding-bottom:2px; }
 
   /* ---------- Schedule editor overlay ---------- */
@@ -188,7 +251,10 @@
     background:var(--surface-2); color:var(--c-rust); font-size:15px; cursor:pointer;
   }
   .editor-empty{ text-align:center; color:var(--text-faint); font-size:13px; padding:24px 0; }
+  .editor-note{ min-height:18px; padding-top:8px; font-size:12.5px; font-weight:600; color:var(--c-moss); text-align:center; }
   .editor-actions{ display:flex; gap:8px; padding-top:10px; }
+  #scanBtn{ color:var(--c-steel); border-color:var(--c-steel); }
+  #scanBtn:disabled{ opacity:.5; }
   .name-label{ font-family:var(--font-mono); font-size:10.5px; letter-spacing:.12em; text-transform:uppercase; color:var(--text-faint); margin-top:8px; }
   .name-input{ width:100%; margin-top:4px; padding:11px 12px; border-radius:10px; border:1px solid var(--border); background:var(--surface); color:var(--text); font-size:15px; font-weight:600; }
   .greeting{ cursor:pointer; }
@@ -201,8 +267,9 @@
       <div class="notch"></div>
 
       <div class="topbar">
-        <div class="eyebrow"><span class="dot" id="pulseDot"></span>Timetable Webgate</div>
+        <div class="eyebrow"><span class="dot" id="pulseDot"></span>BunkSafe</div>
         <div class="topbar-icons">
+          <button class="icon-btn" id="calBtn" aria-label="Academic calendar">📅</button>
           <button class="icon-btn" id="editBtn" aria-label="Edit schedule">✎</button>
           <button class="icon-btn" id="themeToggle" aria-label="Toggle theme">◐</button>
         </div>
@@ -234,7 +301,18 @@
       </div>
       <ul class="timeline" id="timeline"></ul>
 
-      <footer>Swipe left or right to change day. Tap ✎ to edit your timetable.</footer>
+      <footer>Swipe left or right to change day. Tap ✎ to scan or edit your timetable.</footer>
+
+      <!-- ---------------- Academic calendar ---------------- -->
+      <div class="cal-overlay" id="calOverlay">
+        <div class="cal-head">
+          <button class="icon-btn" id="calBack" aria-label="Back">‹</button>
+          <h2 id="calTitle">Academic calendar</h2>
+          <button class="icon-btn" id="calClose" aria-label="Close">✕</button>
+        </div>
+        <div class="day-tabs" id="calTabs"></div>
+        <div class="cal-body" id="calBody"></div>
+      </div>
 
       <!-- ---------------- Editor overlay ---------------- -->
       <div class="editor-overlay" id="editorOverlay">
@@ -246,9 +324,11 @@
         <input type="text" id="nameInput" class="name-input" maxlength="20" placeholder="Enter your name" />
         <div class="day-tabs" id="dayTabs"></div>
         <div class="editor-list" id="editorList"></div>
+        <div class="editor-note" id="editorNote"></div>
         <div class="editor-actions">
           <button class="btn btn-ghost btn-sm" id="addPeriodBtn">+ Add period</button>
-          <button class="btn btn-ghost btn-sm" id="resetSampleBtn">Load sample</button>
+          <button class="btn btn-ghost btn-sm" id="scanBtn">📷 Scan from image</button>
+          <input type="file" id="scanInput" accept="image/*" hidden />
         </div>
         <div class="editor-footer">
           <button class="btn btn-secondary" id="editorCancel" style="flex:1;">Cancel</button>
@@ -270,44 +350,9 @@
   const DAYS = ["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"];
   const STORAGE_KEY = "weekly-timetable-v1";
 
-  /* ---------------- Seed data (best-effort read of your uploaded
-     timetable — double check it in the editor and fix anything off) */
-  const DEFAULT_SCHEDULE = {
-    Sunday: [],
-    Monday: [
-      { start:"08:00", end:"09:40", label:"Prompt Engg. — NYB 005" },
-      { start:"09:40", end:"10:30", label:"CN — VIB 403" },
-      { start:"12:05", end:"12:50", label:"DMS — NYB 001" },
-    ],
-    Tuesday: [
-      { start:"08:00", end:"08:50", label:"DMS — NYB 313" },
-      { start:"09:40", end:"11:20", label:"Python Lab — VIB 411" },
-      { start:"11:20", end:"12:05", label:"OS — VIB 212" },
-    ],
-    Wednesday: [
-      { start:"08:00", end:"09:40", label:"Prompt Engg. — NYB 005" },
-      { start:"10:30", end:"11:20", label:"DMS — VIB 212" },
-      { start:"11:20", end:"12:05", label:"Python — VIB 212" },
-    ],
-    Thursday: [
-      { start:"08:00", end:"09:40", label:"Python Lab — VIB 206" },
-      { start:"10:30", end:"11:20", label:"CN — NYB 313" },
-      { start:"11:20", end:"12:05", label:"OS — NYB 313" },
-      { start:"12:05", end:"12:50", label:"SE — VIB 312" },
-    ],
-    Friday: [
-      { start:"08:00", end:"08:50", label:"OS — NYB 006" },
-      { start:"08:50", end:"09:40", label:"Python — NYB 313" },
-      { start:"10:30", end:"11:20", label:"SE — VIB 312" },
-      { start:"11:20", end:"12:50", label:"CN Lab — VIB 403" },
-    ],
-    Saturday: [
-      { start:"10:30", end:"11:20", label:"CN — VIB 212" },
-      { start:"11:20", end:"12:50", label:"OS Lab — VIB 411" },
-    ],
-  };
+  const EMPTY_SCHEDULE = () => { const o = {}; DAYS.forEach(d => o[d] = []); return o; };
 
-  let weeklySchedule = JSON.parse(JSON.stringify(DEFAULT_SCHEDULE));
+  let weeklySchedule = EMPTY_SCHEDULE();
   let draftSchedule = null;
   let editingDay = DAYS[new Date().getDay()];
   let todaySlots = [];
@@ -335,6 +380,238 @@
     try{ window.localStorage.setItem(STORAGE_KEY, data); }catch(e){}
     try{ if (window.storage) await window.storage.set(STORAGE_KEY, data, false); }catch(e){}
   }
+
+/* ---------- Image clean-up before OCR: threshold + remove table grid lines ---------- */
+function cleanForOCR(gray, w, h, flip){
+  const n = w * h;
+  const hist = new Array(256).fill(0);
+  for (let i = 0; i < n; i++) hist[gray[i]]++;
+  let sum = 0; for (let t = 0; t < 256; t++) sum += t * hist[t];
+  let sumB = 0, wB = 0, best = -1, thr = 128;
+  for (let t = 0; t < 256; t++){
+    wB += hist[t]; if (!wB) continue;
+    const wF = n - wB; if (!wF) break;
+    sumB += t * hist[t];
+    const mB = sumB / wB, mF = (sum - sumB) / wF;
+    const between = wB * wF * (mB - mF) * (mB - mF);
+    if (between > best){ best = between; thr = t; }
+  }
+  let dark = new Uint8Array(n), darkCount = 0;
+  for (let i = 0; i < n; i++){ if (gray[i] <= thr){ dark[i] = 1; darkCount++; } }
+  if (flip || darkCount > n * 0.5){ for (let i = 0; i < n; i++) dark[i] = dark[i] ? 0 : 1; }   // light text on dark page (or forced second pass)
+
+  const L = Math.max(50, Math.round(Math.max(w, h) * 0.03));
+  const kill = new Uint8Array(n);
+  for (let y = 0; y < h; y++){
+    let x = 0;
+    while (x < w){
+      if (!dark[y * w + x]){ x++; continue; }
+      let e = x; while (e < w && dark[y * w + e]) e++;
+      if (e - x >= L) for (let k = x; k < e; k++) kill[y * w + k] = 1;
+      x = e;
+    }
+  }
+  for (let x = 0; x < w; x++){
+    let y = 0;
+    while (y < h){
+      if (!dark[y * w + x]){ y++; continue; }
+      let e = y; while (e < h && dark[e * w + x]) e++;
+      if (e - y >= L) for (let k = y; k < e; k++) kill[k * w + x] = 1;
+      y = e;
+    }
+  }
+  const out = new Uint8ClampedArray(n).fill(255);
+  for (let y = 0; y < h; y++) for (let x = 0; x < w; x++){
+    const i = y * w + x;
+    if (!dark[i]) continue;
+    // also drop dark pixels hugging a removed line (anti-aliasing edge)
+    let near = kill[i];
+    if (!near){
+      if ((x > 0 && kill[i-1]) || (x < w-1 && kill[i+1]) || (y > 0 && kill[i-w]) || (y < h-1 && kill[i+w])) near = 1;
+    }
+    if (!near) out[i] = 0;
+  }
+  return out;
+}
+
+
+/* ---------- Timetable image parser (works on OCR word boxes) ---------- */
+function parseTimetableWords(rawWords){
+  const DAY_PATTERNS = [
+    ['Sunday',    /^sun(day)?\.?$/i],
+    ['Monday',    /^mon(day)?\.?$/i],
+    ['Tuesday',   /^tue(s|sday)?\.?$/i],
+    ['Wednesday', /^wed(nesday)?\.?$/i],
+    ['Thursday',  /^thu(r|rs|rsday)?\.?$/i],
+    ['Friday',    /^fri(day)?\.?$/i],
+    ['Saturday',  /^sat(urday)?\.?$/i]
+  ];
+  const DAY_NAMES = DAY_PATTERNS.map(d => d[0]);
+  const words = rawWords
+    .map(w => ({ text:String(w.text||'').trim(), x0:w.x0, y0:w.y0, x1:w.x1, y1:w.y1, conf:w.conf }))
+    .filter(w => w.text && isFinite(w.x0) && isFinite(w.y0) && w.x1 > w.x0 && w.y1 > w.y0 && !/^[|_\-–—=~.,:;'"`!\[\]{}()\\\/]+$/.test(w.text));
+  if (words.length < 8) throw new Error('I could not read enough text from this image.');
+
+  // 1. day labels
+  const cands = [];
+  words.forEach(w => {
+    const t = w.text.replace(/[^A-Za-z.]/g,'');
+    for (const [name, re] of DAY_PATTERNS){ if (re.test(t)){ cands.push({ day:name, box:w }); break; } }
+  });
+  const dayNamesFound = new Set(cands.map(c => c.day));
+  if (dayNamesFound.size < 2) throw new Error('I could not find day names (Mon, Tue, Wed…) in the image.');
+
+  const cx = b => (b.x0 + b.x1) / 2, cy = b => (b.y0 + b.y1) / 2;
+  const spreadX = Math.max(...cands.map(c => cx(c.box))) - Math.min(...cands.map(c => cx(c.box)));
+  const spreadY = Math.max(...cands.map(c => cy(c.box))) - Math.min(...cands.map(c => cy(c.box)));
+  const daysAreRows = spreadY >= spreadX;
+  const dayAxis = daysAreRows ? 'y' : 'x';
+  const timeAxis = daysAreRows ? 'x' : 'y';
+  const lo = (b, ax) => ax === 'x' ? b.x0 : b.y0;
+  const hi = (b, ax) => ax === 'x' ? b.x1 : b.y1;
+  const mid = (b, ax) => (lo(b, ax) + hi(b, ax)) / 2;
+
+  // one label per day: the one nearest the start of the time axis
+  const labels = [];
+  dayNamesFound.forEach(day => {
+    const list = cands.filter(c => c.day === day).sort((a,b) => mid(a.box, timeAxis) - mid(b.box, timeAxis));
+    labels.push({ day, box:list[0].box });
+  });
+  labels.sort((a,b) => mid(a.box, dayAxis) - mid(b.box, dayAxis));
+  const labelSet = new Set(labels.map(l => l.box));
+
+  // day bands
+  const centers = labels.map(l => mid(l.box, dayAxis));
+  const bandEdges = [];
+  for (let i = 0; i <= labels.length; i++){
+    if (i === 0) bandEdges.push(centers[0] - (centers[1] - centers[0]) / 2);
+    else if (i === labels.length) bandEdges.push(centers[i-1] + (centers[i-1] - centers[i-2]) / 2);
+    else bandEdges.push((centers[i-1] + centers[i]) / 2);
+  }
+  const firstBand = bandEdges[0], lastBand = bandEdges[bandEdges.length - 1];
+
+  // 2. time header
+  const TIME_RE = /(\d{1,2})\s*[:.;]\s*(\d{2})/g;
+  const items = [];
+  let twoInWord = false;
+  words.forEach(w => {
+    if (labelSet.has(w)) return;
+    if (mid(w, dayAxis) >= firstBand) return;
+    const text = w.text; let m, n = 0; const found = [];
+    TIME_RE.lastIndex = 0;
+    while ((m = TIME_RE.exec(text)) !== null){
+      let h = parseInt(m[1], 10), mi = parseInt(m[2], 10);
+      if (h > 23 || mi > 59) continue;
+      if (h >= 1 && h <= 6) h += 12;
+      found.push({ value:h * 60 + mi, frac:(m.index + m[0].length / 2) / text.length });
+    }
+    if (found.length >= 2) twoInWord = true;
+    found.forEach(f => items.push({ value:f.value, pos:lo(w, timeAxis) + f.frac * (hi(w, timeAxis) - lo(w, timeAxis)) }));
+  });
+  if (items.length < 2) throw new Error('I could not find period times (like 08:00) above or beside the classes.');
+
+  const byValue = new Map();
+  items.forEach(it => { if (!byValue.has(it.value)) byValue.set(it.value, []); byValue.get(it.value).push(it.pos); });
+  const values = [...byValue.keys()].sort((a,b) => a - b);
+  const meanPos = v => { const a = byValue.get(v); return a.reduce((s,x) => s + x, 0) / a.length; };
+  const rangeMode = twoInWord || [...byValue.values()].some(a => a.length >= 2);
+
+  let cols = []; // {start,end,lo,hi}
+  if (rangeMode){
+    const P = values.map(meanPos);
+    const m = values.length - 1;
+    if (m < 2) throw new Error('I found too few period times to build a grid.');
+    const b = new Array(m + 1);
+    for (let k = 1; k <= m - 1; k++) b[k] = P[k];
+    b[0] = m >= 3 ? b[1] - (b[2] - b[1]) : 2 * P[0] - b[1];
+    b[m] = m >= 3 ? b[m-1] + (b[m-1] - b[m-2]) : 2 * P[m] - b[m-1];
+    for (let k = 0; k < m; k++) cols.push({ start:values[k], end:values[k+1], lo:b[k], hi:b[k+1] });
+  } else {
+    const P = values.map(meanPos);
+    const n = values.length;
+    if (n < 2) throw new Error('I found too few period times to build a grid.');
+    const durs = []; for (let k = 0; k < n - 1; k++) durs.push(values[k+1] - values[k]);
+    durs.sort((a,b) => a - b);
+    const medDur = durs[Math.floor(durs.length / 2)] || 50;
+    const b = new Array(n + 1);
+    for (let k = 1; k < n; k++) b[k] = (P[k-1] + P[k]) / 2;
+    b[0] = P[0] - (P[1] - P[0]) / 2;
+    b[n] = P[n-1] + (P[n-1] - P[n-2]) / 2;
+    for (let k = 0; k < n; k++) cols.push({ start:values[k], end:k < n - 1 ? values[k+1] : values[k] + medDur, lo:b[k], hi:b[k+1] });
+  }
+  cols.sort((a,b) => a.lo - b.lo);
+  const gridLo = cols[0].lo, gridHi = cols[cols.length - 1].hi;
+
+  // 3. body words
+  const body = words.filter(w => !labelSet.has(w)
+    && mid(w, dayAxis) >= firstBand && mid(w, dayAxis) <= lastBand
+    && mid(w, timeAxis) >= gridLo && mid(w, timeAxis) <= gridHi);
+  const heights = body.map(w => w.y1 - w.y0).sort((a,b) => a - b);
+  const H = heights.length ? heights[Math.floor(heights.length / 2)] : 14;
+  const gap = (a, b, ax) => Math.max(0, Math.max(lo(a, ax) - hi(b, ax), lo(b, ax) - hi(a, ax)));
+
+  const fmt = v => String(Math.floor(v / 60)).padStart(2,'0') + ':' + String(v % 60).padStart(2,'0');
+  const SKIP = /^(lunch|break|recess|interval|short break|lunch break)$/i;
+  const schedule = {}; DAY_NAMES.forEach(d => schedule[d] = []);
+  let total = 0;
+
+  labels.forEach((lab, li) => {
+    const bandLo = bandEdges[li], bandHi = bandEdges[li + 1];
+    const ws = body.filter(w => mid(w, dayAxis) >= bandLo && mid(w, dayAxis) < bandHi);
+    // union-find clusters
+    const parent = ws.map((_, i) => i);
+    const find = i => parent[i] === i ? i : (parent[i] = find(parent[i]));
+    for (let i = 0; i < ws.length; i++) for (let j = i + 1; j < ws.length; j++){
+      const gx = gap(ws[i], ws[j], 'x'), gy = gap(ws[i], ws[j], 'y');
+      const sameLine = gy < 0.3 * H && gx < 1.1 * H;      // words next to each other
+      const stacked  = gx === 0 && gy < 1.4 * H;           // lines of one cell, one under another
+      if (sameLine || stacked) parent[find(i)] = find(j);
+    }
+    const groups = new Map();
+    ws.forEach((w, i) => { const r = find(i); if (!groups.has(r)) groups.set(r, []); groups.get(r).push(w); });
+
+    groups.forEach(g => {
+      const box = { x0:Math.min(...g.map(w => w.x0)), y0:Math.min(...g.map(w => w.y0)), x1:Math.max(...g.map(w => w.x1)), y1:Math.max(...g.map(w => w.y1)) };
+      // text: lines top-to-bottom, words left-to-right
+      const sorted = g.slice().sort((a,b) => cy(a) - cy(b));
+      const lines = []; 
+      sorted.forEach(w => {
+        const last = lines[lines.length - 1];
+        if (last && Math.abs(cy(w) - last.cy) <= 0.6 * H){ last.ws.push(w); last.cy = (last.cy * (last.ws.length - 1) + cy(w)) / last.ws.length; }
+        else lines.push({ cy:cy(w), ws:[w] });
+      });
+      const lineTexts = lines.map(l => l.ws.sort((a,b) => a.x0 - b.x0).map(w => w.text).join(' ')
+        .replace(/[|_\[\]{}\\~]/g,' ').replace(/\s+/g,' ').trim()).filter(Boolean);
+      if (!lineTexts.length) return;
+      let label;
+      const lastLine = lineTexts[lineTexts.length - 1];
+      if (lineTexts.length > 1 && /\d/.test(lastLine)) label = lineTexts.slice(0, -1).join(' ') + ' — ' + lastLine;
+      else label = lineTexts.join(' ');
+      label = label.replace(/^[\s\-–—:.,]+|[\s\-–—:.,]+$/g,'');
+      if (label.length < 2 || !/[A-Za-z0-9]/.test(label) || SKIP.test(label)) return;
+
+      // which columns does this cluster cover?
+      const cl = lo(box, timeAxis), ch = hi(box, timeAxis), cw = ch - cl;
+      const covered = [];
+      cols.forEach((c, k) => {
+        const ov = Math.min(ch, c.hi) - Math.max(cl, c.lo);
+        if (ov > 0 && ov >= 0.3 * Math.min(c.hi - c.lo, cw)) covered.push(k);
+      });
+      if (!covered.length){
+        const m = (cl + ch) / 2; const k = cols.findIndex(c => m >= c.lo && m < c.hi);
+        if (k < 0) return; covered.push(k);
+      }
+      const a = Math.min(...covered), z = Math.max(...covered);
+      schedule[lab.day].push({ start:fmt(cols[a].start), end:fmt(cols[z].end), label });
+      total++;
+    });
+    schedule[lab.day].sort((a,b) => a.start < b.start ? -1 : a.start > b.start ? 1 : 0);
+  });
+
+  if (!total) throw new Error('I found the grid but could not read any class names.');
+  return { schedule, daysFound:labels.map(l => l.day), total, periods:cols.length, orientation:daysAreRows ? 'rows' : 'columns' };
+}
+
 
   /* ---------------- DOM refs ---------------- */
   const flapRow      = document.getElementById('flapRow');
@@ -364,7 +641,6 @@
   const dayTabsEl      = document.getElementById('dayTabs');
   const editorListEl   = document.getElementById('editorList');
   const addPeriodBtn   = document.getElementById('addPeriodBtn');
-  const resetSampleBtn = document.getElementById('resetSampleBtn');
 
   /* ---------------- Theme ---------------- */
   function autoTheme(){ const h = new Date().getHours(); return (h < 6 || h >= 20) ? 'dark' : 'light'; }
@@ -510,7 +786,7 @@
   /* ---------------- Status logic ---------------- */
   function computeStatus(now){
     if (todaySlots.length === 0){
-      return { pill:'No classes', label:'Day Off', accent:'steel', msg:'Nothing scheduled today. Tap ✎ to add classes.' };
+      return { pill:'No classes', label:'Day Off', accent:'steel', msg:'Nothing scheduled today. Tap ✎ to scan or add your timetable.' };
     }
     const current = todaySlots.find(s => now >= s.start && now < s.end);
     if (current){
@@ -636,10 +912,859 @@
     renderEditorList();
   });
 
-  resetSampleBtn.addEventListener('click', () => {
-    draftSchedule[editingDay] = JSON.parse(JSON.stringify(DEFAULT_SCHEDULE[editingDay] || []));
-    renderDayTabs();
-    renderEditorList();
+  /* ---------------- Scan timetable from an image ---------------- */
+  const scanBtn   = document.getElementById('scanBtn');
+  const scanInput = document.getElementById('scanInput');
+  const editorNote = document.getElementById('editorNote');
+  function setNote(msg, kind){
+    editorNote.textContent = msg || '';
+    editorNote.style.color = kind === 'err' ? 'var(--c-rust)' : kind === 'warn' ? 'var(--c-amber)' : 'var(--c-moss)';
+  }
+  let tessPromise = null, tessWorker = null, progressHandler = null;
+  function loadTesseract(){
+    if (window.Tesseract) return Promise.resolve();
+    if (!tessPromise) tessPromise = new Promise((res, rej) => {
+      const s = document.createElement('script');
+      s.src = 'https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js';
+      s.onload = res;
+      s.onerror = () => { tessPromise = null; rej(new Error('NETWORK')); };
+      document.head.appendChild(s);
+    });
+    return tessPromise;
+  }
+  async function getWorker(){
+    if (!tessWorker){
+      tessWorker = await window.Tesseract.createWorker('eng', 1, { logger: m => { if (progressHandler) progressHandler(m); } });
+      await tessWorker.setParameters({ tessedit_pageseg_mode: '11' });
+    }
+    return tessWorker;
+  }
+  function loadImage(file){
+    return new Promise((res, rej) => {
+      const url = URL.createObjectURL(file);
+      const img = new Image();
+      img.onload = () => res({ img, url });
+      img.onerror = () => { URL.revokeObjectURL(url); rej(new Error('BADIMAGE')); };
+      img.src = url;
+    });
+  }
+  async function prepareGray(file){
+    const { img, url } = await loadImage(file);
+    const iw = img.naturalWidth, ih = img.naturalHeight;
+    const sc = Math.min(2.5, 2400 / Math.max(iw, ih));
+    const w = Math.round(iw * sc), h = Math.round(ih * sc);
+    const c = document.createElement('canvas'); c.width = w; c.height = h;
+    const ctx = c.getContext('2d', { willReadFrequently:true });
+    ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, w, h);
+    ctx.drawImage(img, 0, 0, w, h);
+    URL.revokeObjectURL(url);
+    const d = ctx.getImageData(0, 0, w, h).data;
+    const gray = new Uint8ClampedArray(w * h);
+    for (let i = 0, j = 0; i < gray.length; i++, j += 4) gray[i] = (d[j] * 299 + d[j+1] * 587 + d[j+2] * 114) / 1000;
+    return { gray, w, h };
+  }
+  function grayToCanvas(g, w, h){
+    const c = document.createElement('canvas'); c.width = w; c.height = h;
+    const ctx = c.getContext('2d');
+    const im = ctx.createImageData(w, h);
+    for (let i = 0, j = 0; i < g.length; i++, j += 4){ im.data[j] = im.data[j+1] = im.data[j+2] = g[i]; im.data[j+3] = 255; }
+    ctx.putImageData(im, 0, 0);
+    return c;
+  }
+  async function ocrWords(worker, gray, w, h, flip){
+    const canvas = grayToCanvas(cleanForOCR(gray, w, h, flip), w, h);
+    const { data } = await worker.recognize(canvas);
+    return (data.words || []).map(x => ({ text:x.text, x0:x.bbox.x0, y0:x.bbox.y0, x1:x.bbox.x1, y1:x.bbox.y1, conf:x.confidence }));
+  }
+  function isDayOrTime(w){
+    return /\d\s*[:.;]\s*\d{2}/.test(w.text) || /^(mon|tue|wed|thu|fri|sat|sun)/i.test(w.text.replace(/[^A-Za-z]/g, ''));
+  }
+  function mergeExtra(first, extra){
+    const have = first.filter(isDayOrTime);
+    const inside = (w, o) => { const cx = (w.x0 + w.x1) / 2, cy = (w.y0 + w.y1) / 2; return cx >= o.x0 && cx <= o.x1 && cy >= o.y0 && cy <= o.y1; };
+    return first.concat(extra.filter(w => isDayOrTime(w) && !have.some(o => inside(w, o))));
+  }
+  function tryParse(words){
+    try{ return parseTimetableWords(words); }
+    catch(e){ e.isParse = true; throw e; }
+  }
+
+  scanBtn.addEventListener('click', () => scanInput.click());
+  scanInput.addEventListener('change', async () => {
+    const file = scanInput.files && scanInput.files[0];
+    scanInput.value = '';
+    if (!file) return;
+    scanBtn.disabled = true;
+    try{
+      setNote('Loading the reader… (needs internet the first time)', 'warn');
+      await loadTesseract();
+      const worker = await getWorker();
+      progressHandler = m => {
+        if (m.status === 'recognizing text') setNote('Reading your timetable… ' + Math.round((m.progress || 0) * 100) + '%', 'warn');
+      };
+      setNote('Preparing image…', 'warn');
+      const { gray, w, h } = await prepareGray(file);
+      const words = await ocrWords(worker, gray, w, h, false);
+      let result;
+      try{ result = tryParse(words); }
+      catch(e1){
+        if (!e1.isParse) throw e1;
+        setNote('Trying a second pass…', 'warn');
+        const extra = await ocrWords(worker, gray, w, h, true);
+        result = tryParse(mergeExtra(words, extra));
+      }
+      result.daysFound.forEach(d => { draftSchedule[d] = result.schedule[d]; });
+      renderDayTabs();
+      renderEditorList();
+      setNote('Found ' + result.total + ' class' + (result.total > 1 ? 'es' : '') + ' on ' + result.daysFound.length + ' days. Please check each day, fix any mistakes, then tap Save Timetable.', 'ok');
+    }catch(err){
+      if (err && err.isParse) setNote(err.message + ' Try a clearer, straight-on screenshot or photo, or add classes by hand.', 'err');
+      else if (err && err.message === 'NETWORK') setNote('Could not load the reader. Check your internet and try again.', 'err');
+      else if (err && err.message === 'BADIMAGE') setNote('That file could not be opened as an image.', 'err');
+      else setNote('Something went wrong while reading the image. Please try again.', 'err');
+    }finally{
+      scanBtn.disabled = false;
+      progressHandler = null;
+    }
+  });
+
+  /* ---------------- Academic calendar: engine ---------------- */
+/* ---------------- Academic calendar engine (pure logic, no DOM) ---------------- */
+const CAL_DAYS = ["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"];
+const calPad = n => String(n).padStart(2, '0');
+function calIso(d){ return d.getFullYear() + '-' + calPad(d.getMonth() + 1) + '-' + calPad(d.getDate()); }
+function calParse(s){ const p = String(s).split('-').map(Number); return new Date(p[0], p[1] - 1, p[2], 12, 0, 0); }
+function calAdd(iso, n){ const d = calParse(iso); d.setDate(d.getDate() + n); return calIso(d); }
+function calValidIso(s){
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(String(s || ''))) return false;
+  const d = calParse(s); return calIso(d) === s;
+}
+function calWeekday(iso){ return CAL_DAYS[calParse(iso).getDay()]; }
+function calOrdinal(iso){ return Math.floor((calParse(iso).getDate() - 1) / 7) + 1; }
+function calDiffDays(a, b){ return Math.round((calParse(b) - calParse(a)) / 864e5); }
+
+/* Subject name from a timetable label such as "Python Lab — VIB 411" */
+function calSubjectOf(label, aliases){
+  const raw = String(label || '').split(' — ')[0].trim();
+  const isLab = /\b(lab|laboratory|practical)\b/i.test(raw);
+  let name = raw;                       // "Python" and "Python Lab" are separate subjects
+  const key = name.toLowerCase();
+  if (aliases && aliases[key]) name = aliases[key];
+  return { name, isLab, raw };
+}
+function calSessionsFor(schedule, weekday, aliases){
+  return (schedule[weekday] || [])
+    .filter(s => s && s.start && s.end && s.label)
+    .map(s => { const sub = calSubjectOf(s.label, aliases); return { start:s.start, end:s.end, label:s.label, subject:sub.name, isLab:sub.isLab }; })
+    .sort((a, b) => a.start < b.start ? -1 : a.start > b.start ? 1 : 0);
+}
+const calCovers = (e, iso) => e.start <= iso && iso <= (e.end || e.start);
+const calIsFull = e => (e.category === 'holiday' || e.category === 'exam' || e.category === 'event') && e.scope !== 'partial';
+const calIsPartial = e => (e.category === 'holiday' || e.category === 'exam' || e.category === 'event') && e.scope === 'partial' && e.from && e.to;
+const calReason = e => ({ entryId:e.id, category:e.category, title:e.title || e.category });
+
+/* Classify one date. Returns { kind:'normal'|'working'|'excluded', reason, useDay, partials, conflict } */
+function calClassify(iso, cal){
+  const all = (cal.entries || []).filter(e => e.status !== 'pending' && calCovers(e, iso));
+  const bucket = origin => ({
+    work: all.filter(e => e.origin === origin && e.category === 'working'),
+    excl: all.filter(e => e.origin === origin && calIsFull(e))
+  });
+  const off = bucket('official'), usr = bucket('user');
+  const partials = all.filter(calIsPartial);
+  const wd = calWeekday(iso), ord = calOrdinal(iso);
+  const rule = (cal.rules || []).find(r => r.enabled && r.weekday === wd && Number(r.ordinal) === ord);
+  const levels = cal.userWins ? [usr, off] : [off, usr];
+  let out = null, conflict = false;
+  for (const lv of levels){
+    if (lv.work.length){ out = { kind:'working', reason:calReason(lv.work[0]), useDay:lv.work[0].useDay || '' }; conflict = lv.excl.length > 0; break; }
+    if (lv.excl.length){ out = { kind:'excluded', reason:calReason(lv.excl[0]) }; break; }
+  }
+  if (!out && rule) out = { kind:'excluded', reason:{ entryId:null, category:'rule', title:'Recurring rule: ' + ['','1st','2nd','3rd','4th','5th'][ord] + ' ' + wd } };
+  if (!out) out = { kind:'normal', reason:null };
+  out.partials = partials; out.conflict = conflict;
+  return out;
+}
+
+const calOverlap = (s, e, from, to) => s < to && e > from;
+
+/* Sessions held/excluded on one date */
+function calDay(iso, cal, schedule){
+  const info = calClassify(iso, cal);
+  const tableDay = (info.kind === 'working' && info.useDay) ? info.useDay : calWeekday(iso);
+  const sessions = calSessionsFor(schedule, tableDay, cal.aliases);
+  const counted = [], excluded = [];
+  sessions.forEach(s => {
+    if (info.kind === 'excluded'){ excluded.push(Object.assign({ date:iso, reason:info.reason }, s)); return; }
+    const hit = info.partials.find(p => calOverlap(s.start, s.end, p.from, p.to));
+    if (hit) excluded.push(Object.assign({ date:iso, reason:calReason(hit) }, s));
+    else counted.push(Object.assign({ date:iso }, s));
+  });
+  return { date:iso, info, counted, excluded, workingNoTimetable: info.kind === 'working' && sessions.length === 0 };
+}
+
+function calHash(str){ let h = 5381; for (let i = 0; i < str.length; i++) h = ((h << 5) + h + str.charCodeAt(i)) | 0; return (h >>> 0).toString(36); }
+
+/* Main calculation */
+function calCompute(cal, schedule, todayIso, nowIso){
+  const sem = cal.semester || {};
+  const warnings = [];
+  if (!calValidIso(sem.start) || !calValidIso(sem.end)) return { ok:false, code:'semester', error:'Set the semester start and end dates first.', warnings };
+  if (sem.end < sem.start) return { ok:false, code:'order', error:'The semester end date is earlier than the start date.', warnings };
+  const hasTimetable = CAL_DAYS.some(d => (schedule[d] || []).some(s => s && s.start && s.end && s.label));
+  if (!hasTimetable) return { ok:false, code:'timetable', error:'Your timetable is empty. Add or scan your timetable first.', warnings };
+
+  let calc = calValidIso(cal.calcDate) ? cal.calcDate : todayIso;
+  if (calc < sem.start){ warnings.push({ type:'info', text:'The calculation date is before the semester starts, so counting begins on ' + sem.start + '.' }); calc = sem.start; }
+  if (calc > sem.end) warnings.push({ type:'info', text:'The calculation date is after the semester end, so nothing remains.' });
+
+  const subjects = new Map();
+  const get = name => { if (!subjects.has(name)) subjects.set(name, { name, rem:{ total:0, lec:0, lab:0 }, done:{ total:0, lec:0, lab:0 }, dates:[], excluded:[] }); return subjects.get(name); };
+  // make sure every timetable subject shows up, even with zero left
+  CAL_DAYS.forEach(d => calSessionsFor(schedule, d, cal.aliases).forEach(s => get(s.subject)));
+
+  const bump = (o, s) => { o.total++; if (s.isLab) o.lab++; else o.lec++; };
+  const conflicts = [], noTable = [];
+  let nextHoliday = null, nextTeaching = null; const upcoming = [];
+
+  // completed: semester start .. day before calculation date
+  for (let d = sem.start; d < calc && d <= sem.end; d = calAdd(d, 1)){
+    calDay(d, cal, schedule).counted.forEach(s => bump(get(s.subject).done, s));
+  }
+  // remaining: calculation date .. semester end (inclusive)
+  for (let d = calc; d <= sem.end; d = calAdd(d, 1)){
+    const day = calDay(d, cal, schedule);
+    if (day.info.conflict) conflicts.push(d);
+    if (day.workingNoTimetable) noTable.push(d);
+    day.counted.forEach(s => { const sub = get(s.subject); bump(sub.rem, s); sub.dates.push({ date:d, start:s.start, end:s.end, label:s.label, isLab:s.isLab }); });
+    day.excluded.forEach(s => get(s.subject).excluded.push({ date:d, start:s.start, end:s.end, label:s.label, isLab:s.isLab, reason:s.reason }));
+    if (!nextTeaching && day.counted.length) nextTeaching = d;
+    const r = day.info.kind === 'excluded' ? day.info.reason : null;
+    if (!nextHoliday && r && (r.category === 'holiday' || r.category === 'rule')) nextHoliday = { date:d, title:r.title };
+    if (upcoming.length < 6){
+      const ex = day.info.kind === 'excluded' && r && (r.category === 'exam' || r.category === 'event') ? r : (day.excluded.find(x => x.reason.category === 'exam' || x.reason.category === 'event') || {}).reason;
+      if (ex && (ex.category === 'exam' || ex.category === 'event') && !upcoming.some(u => u.date === d)) upcoming.push({ date:d, category:ex.category, title:ex.title, partial: day.info.kind !== 'excluded' });
+    }
+  }
+  const pending = (cal.entries || []).filter(e => e.status === 'pending').length;
+  if (pending) warnings.push({ type:'warn', text:pending + ' calendar entr' + (pending > 1 ? 'ies are' : 'y is') + ' waiting for your confirmation and not counted yet.' });
+  if (conflicts.length) warnings.push({ type:'warn', text:'The official calendar conflicts with itself on ' + conflicts.slice(0, 3).join(', ') + (conflicts.length > 3 ? ' and more' : '') + '. The working-day entry was used. Please review.' });
+  if (noTable.length) warnings.push({ type:'warn', text:'Working day without a timetable: ' + noTable.slice(0, 3).join(', ') + '. Choose which weekday timetable it follows.' });
+  if (!(cal.entries || []).length && !(cal.rules || []).some(r => r.enabled)) warnings.push({ type:'info', text:'No holidays, exams or rules added yet, so every timetable day is counted.' });
+  if (cal.updatedAt && nowIso){ const age = calDiffDays(String(cal.updatedAt).slice(0, 10), nowIso.slice(0, 10)); if (age > 30) warnings.push({ type:'info', text:'The calendar was last changed ' + age + ' days ago. Check whether the university published a revision.' }); }
+
+  const list = [...subjects.values()].sort((a, b) => a.name.localeCompare(b.name));
+  return {
+    ok:true, calc, semEnd:sem.end, subjects:list, nextHoliday, nextTeaching, upcoming, warnings,
+    snapshot:{ calculatedAt:nowIso || '', calendarVersion:cal.updatedAt || '', timetableVersion:calHash(JSON.stringify(schedule)) }
+  };
+}
+
+
+  /* ---------------- Academic calendar: importer ---------------- */
+/* ---------------- Calendar import: turn text / rows into candidate entries ---------------- */
+const CAL_MON = 'jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|june?|july?|aug(?:ust)?|sep(?:t(?:ember)?)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?';
+const CAL_MONTHS = { jan:1, feb:2, mar:3, apr:4, may:5, jun:6, jul:7, aug:8, sep:9, oct:10, nov:11, dec:12 };
+const calMonthNo = s => CAL_MONTHS[String(s).slice(0, 3).toLowerCase()];
+const CAL_JOIN = '(?:-|–|—|to|till|until|through|thru)';
+
+function calPickYear(m, d, o){
+  const s = o && o.semStart, e = o && o.semEnd;
+  if (s && e){
+    const ys = Number(s.slice(0, 4)), ye = Number(e.slice(0, 4));
+    for (let y = ys; y <= ye; y++){ const iso = y + '-' + calPad(m) + '-' + calPad(d); if (iso >= s && iso <= e) return y; }
+    return ys;
+  }
+  return (o && o.year) || new Date().getFullYear();
+}
+function calMake(y, m, d){ const iso = y + '-' + calPad(m) + '-' + calPad(d); return calValidIso(iso) ? iso : null; }
+const calYear = (s, m, d, o) => s ? (s.length === 2 ? 2000 + Number(s) : Number(s)) : calPickYear(m, d, o);
+
+/* find every date or date range in a line; returns { items:[{start,end,uncertain,index,length}], rest } */
+function calFindDates(text, o){
+  let work = String(text);
+  const found = [];
+  const take = (re, fn) => {
+    work = work.replace(re, (...a) => {
+      const idx = a[a.length - 2]; const full = a[0];
+      const r = fn(a);
+      if (!r) return full;
+      found.push(Object.assign({ index:idx, length:full.length }, r));
+      return '\u0001'.repeat(full.length);
+    });
+  };
+  const re1  = new RegExp('\\b(\\d{1,2})(?:st|nd|rd|th)?\\s*' + CAL_JOIN + '\\s*(\\d{1,2})(?:st|nd|rd|th)?[\\s,.\\-]*(' + CAL_MON + ')\\b\\.?(?:[\\s,.\\-]*(\\d{4}))?', 'gi');
+  take(re1, a => { const m = calMonthNo(a[3]), y = calYear(a[4], m, Number(a[1]), o); const s = calMake(y, m, Number(a[1])), e = calMake(y, m, Number(a[2])); return s && e && s <= e ? { start:s, end:e } : null; });
+  const re1b = new RegExp('\\b(' + CAL_MON + ')\\b\\.?\\s+(\\d{1,2})(?:st|nd|rd|th)?\\s*' + CAL_JOIN + '\\s*(\\d{1,2})(?!\\d)(?:st|nd|rd|th)?(?:,?\\s*(\\d{4}))?', 'gi');
+  take(re1b, a => { const m = calMonthNo(a[1]), y = calYear(a[4], m, Number(a[2]), o); const s = calMake(y, m, Number(a[2])), e = calMake(y, m, Number(a[3])); return s && e && s <= e ? { start:s, end:e } : null; });
+  take(/\b(\d{4})-(\d{1,2})-(\d{1,2})\b/g, a => { const s = calMake(Number(a[1]), Number(a[2]), Number(a[3])); return s ? { start:s } : null; });
+  take(/\b(\d{1,2})[\/.\-](\d{1,2})[\/.\-](\d{4}|\d{2})\b/g, a => {
+    let d = Number(a[1]), m = Number(a[2]), unc = false;
+    if (m > 12 && d <= 12){ const t = d; d = m; m = t; unc = true; }
+    const y = a[3].length === 2 ? 2000 + Number(a[3]) : Number(a[3]);
+    const s = calMake(y, m, d); return s ? { start:s, uncertain:unc } : null;
+  });
+  const re4 = new RegExp('\\b(\\d{1,2})(?!\\d)(?:st|nd|rd|th)?[\\s,.\\-]*(' + CAL_MON + ')\\b\\.?(?:[\\s,.\\-]*(\\d{4}))?', 'gi');
+  take(re4, a => { const m = calMonthNo(a[2]), d = Number(a[1]), y = calYear(a[3], m, d, o); const s = calMake(y, m, d); return s ? { start:s } : null; });
+  const re5 = new RegExp('\\b(' + CAL_MON + ')\\b\\.?\\s+(\\d{1,2})(?!\\d)(?:st|nd|rd|th)?(?:,?\\s*(\\d{4}))?', 'gi');
+  take(re5, a => { const m = calMonthNo(a[1]), d = Number(a[2]), y = calYear(a[3], m, d, o); const s = calMake(y, m, d); return s ? { start:s } : null; });
+
+  found.sort((a, b) => a.index - b.index);
+  // join "date – date" into a range
+  const items = [];
+  for (let i = 0; i < found.length; i++){
+    const a = found[i], b = found[i + 1];
+    if (!a.end && b && !b.end){
+      const between = String(text).slice(a.index + a.length, b.index);
+      if (new RegExp('^\\s*' + CAL_JOIN + '\\s*$', 'i').test(between) && a.start <= b.start){
+        items.push({ start:a.start, end:b.start, uncertain:a.uncertain || b.uncertain, index:a.index, length:b.index + b.length - a.index });
+        i++; continue;
+      }
+    }
+    items.push(a);
+  }
+  return { items, rest:work.replace(/\u0001+/g, ' ') };
+}
+
+const CAL_WEEKDAY_RE = /\b(?:mon|tues?|wed(?:nes)?|thu(?:rs?)?|fri|sat(?:ur)?|sun)(?:day)?\b\.?(?!\s+(?:time\s*table|schedule|classes))/gi;
+function calDetectUseDay(text){
+  const names = '(sunday|monday|tuesday|wednesday|thursday|friday|saturday)';
+  const m = new RegExp(names + '\\s+(?:time\\s*table|schedule|classes)', 'i').exec(text) || new RegExp('(?:follow\\w*|as\\s+per|according\\s+to)\\s+' + names, 'i').exec(text);
+  return m ? m[1][0].toUpperCase() + m[1].slice(1).toLowerCase() : '';
+}
+function calCleanTitle(rest){
+  const cells = String(rest).split('|').map(c => c.replace(CAL_WEEKDAY_RE, ' ').replace(/\s+/g, ' ').trim())
+    .filter(c => c && !/^[\d\s.,:;()\-–—\/]+$/.test(c) && !/^(s\.?\s*no\.?|sr\.?|date|day|description|holiday|event|particulars?|remarks?)$/i.test(c));
+  let t = cells.join(' – ');
+  t = t.replace(/^[\s\d]{1,4}[.)]\s+/, '').replace(/^[\s\-–—:,.;]+|[\s\-–—:,.;(]+$/g, '').replace(/\s+/g, ' ').trim();
+  return t;
+}
+
+function calCategorize(text, hint){
+  const t = String(text).toLowerCase();
+  if (/\b(?:special\s+working|working\s+day|working\s+saturday|working\s+sunday|compensat\w*|make[- ]?up\s+(?:day|class)|extra\s+working)/.test(t)) return { cat:'working', sure:true };
+  if (/\b(?:exams?|examination|mst|mid[- ]?term|end[- ]?term|midsem|end[- ]?sem|viva|practical\s+exam|internal\s+assess\w*|cia|unit\s+test|cycle\s+test|sessionals?)\b/.test(t)) return { cat:'exam', sure:true };
+  if (/\b(?:holidays?|vacations?|diwali|deepawali|holi|dussehra|dasara|dussera|eid|id[- ]ul|muharram|raksha\s*bandhan|rakhi|janmashtami|ganesh|gandhi|independence|republic|christmas|good\s+friday|mahavir|buddha|guru|nanak|navratri|durga|karwa|bhai\s*dooj|makar|sankranti|pongal|onam|baisakhi|ambedkar|ram\s*navami|hanuman|shivratri|shivaratri|breaks?|recess|no\s+classes?|classes?\s+(?:suspended|cancell?ed))\b/.test(t)) return { cat:'holiday', sure:true };
+  if (/\b(?:fest|festival|events?|sports|annual\s+day|cultural|seminar|workshop|convocation|orientation|hackathon|competition|conference|induction|alumni|freshers?)\b/.test(t)) return { cat:'event', sure:true };
+  if (/\b(?:commenc\w*|reopen\w*|last\s+(?:working\s+)?day|semester\s+(?:start|end|begins?)|result|declaration|registration|admission|submission)\b/.test(t)) return { cat:'info', sure:true };
+  return { cat: hint && hint !== 'auto' ? hint : 'info', sure:false };
+}
+
+function calParseLine(line, o, titleOverride){
+  const raw = String(line).trim();
+  if (!raw) return null;
+  const r = calFindDates(raw, o);
+  if (!r.items.length) return null;
+  const title = titleOverride || calCleanTitle(r.rest);
+  const c = calCategorize(r.rest + ' ' + title, o && o.hint);
+  const out = [];
+  r.items.forEach(it => {
+    out.push({ start:it.start, end:it.end && it.end !== it.start ? it.end : '', title, category:c.cat, scope:'full', useDay:c.cat === 'working' ? calDetectUseDay(raw) : '',
+      uncertain: !!it.uncertain || !c.sure || c.cat === 'exam' || c.cat === 'event' || !title,
+      note: !c.sure ? 'Type guessed — please check' : (c.cat === 'exam' || c.cat === 'event') ? 'Check whether classes are cancelled all day' : (!title ? 'No description found' : (it.uncertain ? 'Day/month order guessed' : '')),
+      raw });
+  });
+  return out;
+}
+function calParseText(text, o){
+  const lines = String(text).split(/\r?\n/).map(l => l.replace(/\s+/g, ' ').trim()).filter(Boolean);
+  const rows = [];
+  for (let i = 0; i < lines.length; i++){
+    let res = calParseLine(lines[i], o);
+    if (res && !res[0].title && lines[i + 1] && !calFindDates(lines[i + 1], o).items.length){
+      const t = calCleanTitle(lines[i + 1]);
+      if (t){ res = calParseLine(lines[i], o, t); i++; }
+    }
+    if (res) res.forEach(r => rows.push(r));
+  }
+  return rows;
+}
+function calParseCsv(text){
+  const first = String(text).split(/\r?\n/)[0] || '';
+  const delim = [',', ';', '\t'].map(d => [d, first.split(d).length]).sort((a, b) => b[1] - a[1])[0][0];
+  const rows = []; let row = [], cur = '', q = false;
+  const s = String(text).replace(/^\uFEFF/, '');
+  for (let i = 0; i < s.length; i++){
+    const ch = s[i];
+    if (q){ if (ch === '"'){ if (s[i + 1] === '"'){ cur += '"'; i++; } else q = false; } else cur += ch; }
+    else if (ch === '"') q = true;
+    else if (ch === delim){ row.push(cur); cur = ''; }
+    else if (ch === '\n' || ch === '\r'){ if (ch === '\r' && s[i + 1] === '\n') i++; row.push(cur); rows.push(row); row = []; cur = ''; }
+    else cur += ch;
+  }
+  if (cur || row.length){ row.push(cur); rows.push(row); }
+  return rows;
+}
+const calRowsToText = rows => rows.map(r => r.map(c => String(c == null ? '' : c).trim()).filter(Boolean).join(' | ')).filter(Boolean).join('\n');
+/* mark rows that already exist */
+function calMarkDuplicates(rows, existing){
+  rows.forEach(r => { r.dup = (existing || []).some(e => e.start === r.start && (e.end || '') === (r.end || '') && String(e.title).toLowerCase() === String(r.title).toLowerCase()); });
+  return rows;
+}
+
+
+  /* ---------------- Academic calendar: screens ---------------- */
+  const CAL_KEY = 'bunksafe-calendar-v1';
+  let cal = { v:1, semester:{ name:'', start:'', end:'' }, calcDate:'', rules:[], entries:[], aliases:{}, userWins:false, updatedAt:'' };
+  function calLoad(){
+    try{
+      const raw = window.localStorage.getItem(CAL_KEY);
+      if (!raw) return;
+      const p = JSON.parse(raw);
+      cal = Object.assign(cal, p);
+      cal.semester = Object.assign({ name:'', start:'', end:'' }, p.semester || {});
+      if (!Array.isArray(cal.rules)) cal.rules = [];
+      if (!Array.isArray(cal.entries)) cal.entries = [];
+      if (!cal.aliases || typeof cal.aliases !== 'object') cal.aliases = {};
+    }catch(e){}
+  }
+  function calSave(touch){
+    if (touch) cal.updatedAt = new Date().toISOString();
+    try{ window.localStorage.setItem(CAL_KEY, JSON.stringify(cal)); }catch(e){}
+  }
+  calLoad();
+
+  const calBtn = document.getElementById('calBtn');
+  const calOverlay = document.getElementById('calOverlay');
+  const cBody = document.getElementById('calBody');
+  const cTitle = document.getElementById('calTitle');
+  const cTabs = document.getElementById('calTabs');
+  const CS = { tab:'summary', view:'main', subject:null, res:null, draft:null, rows:[], hint:'holiday', fileName:'', showAll:false };
+  const CAT = { holiday:'Holiday', exam:'Exam', event:'College event', working:'Working day', info:'Info only' };
+  const newId = () => 'e' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+  const todayIso = () => calIso(new Date());
+  function fmtD(iso, short){
+    if (!calValidIso(iso)) return '';
+    return calParse(iso).toLocaleDateString([], short ? { day:'2-digit', month:'short' } : { weekday:'short', day:'2-digit', month:'short', year:'numeric' });
+  }
+  function fmtRange(e){ return e.end && e.end !== e.start ? fmtD(e.start, true) + ' – ' + fmtD(e.end, true) + ' ' + e.end.slice(0, 4) : fmtD(e.start); }
+  function fmtStamp(iso){ if (!iso) return 'never'; const d = new Date(iso); return isNaN(d) ? 'never' : d.toLocaleString([], { day:'2-digit', month:'short', hour:'2-digit', minute:'2-digit' }); }
+  function cMsg(t, kind){ const m = document.getElementById('cMsg'); if (!m) return; m.textContent = t || ''; m.className = 'c-msg' + (kind ? ' ' + kind : ''); }
+  function scopeText(e){
+    if (e.category === 'working') return e.useDay ? 'Follows ' + e.useDay + ' timetable' : 'Normal timetable';
+    if (e.category === 'info') return 'No effect on counting';
+    return e.scope === 'partial' ? 'Only ' + e.from + '–' + e.to : 'Whole day';
+  }
+  const timeLabel = s => s.start + '–' + s.end + (s.isLab ? ' · Lab' : '');
+
+  function cRender(){
+    const sub = CS.view !== 'main';
+    cTabs.style.display = sub ? 'none' : 'flex';
+    cTabs.innerHTML = [['summary', 'Summary'], ['calendar', 'Calendar'], ['settings', 'Settings']]
+      .map(t => `<button class="day-tab${CS.tab === t[0] ? ' active' : ''}" data-act="tab" data-t="${t[0]}">${t[1]}</button>`).join('');
+    let html;
+    if (CS.view === 'subject'){ cTitle.textContent = CS.subject; html = cViewSubject(); }
+    else if (CS.view === 'entry'){ cTitle.textContent = CS.draft.isNew ? 'Add entry' : 'Edit entry'; html = cViewEntry(); }
+    else if (CS.view === 'import'){ cTitle.textContent = 'Import calendar'; html = cViewImport(); }
+    else if (CS.view === 'review'){ cTitle.textContent = 'Review import'; html = cViewReview(); }
+    else {
+      cTitle.textContent = 'Academic calendar';
+      html = CS.tab === 'calendar' ? cViewCalendar() : CS.tab === 'settings' ? cViewSettings() : cViewSummary();
+    }
+    cBody.innerHTML = html;
+  }
+
+  function cSemesterForm(){
+    const s = cal.semester;
+    return `<div class="c-card"><label class="name-label" for="sName">Semester name</label>
+      <input class="name-input" id="sName" maxlength="40" placeholder="e.g. III Semester" value="${esc(s.name)}" />
+      <div class="c-grid2"><div><label class="name-label" for="sStart">Starts</label><input class="name-input" type="date" id="sStart" value="${esc(s.start)}" /></div>
+      <div><label class="name-label" for="sEnd">Ends</label><input class="name-input" type="date" id="sEnd" value="${esc(s.end)}" /></div></div>
+      <div class="c-row2"><button class="btn btn-primary" data-act="save-sem">Save semester</button></div><div class="c-msg" id="cMsg"></div></div>`;
+  }
+
+  function cViewSummary(){
+    const now = new Date();
+    const res = CS.res = calCompute(cal, weeklySchedule, calIso(now), now.toISOString());
+    if (!res.ok){
+      if (res.code === 'timetable') return `<div class="c-card"><div class="c-h">Add your timetable first</div><div class="c-p">${esc(res.error)} BunkSafe counts sessions from the timetable you already use here.</div><div class="c-row2"><button class="btn btn-primary" data-act="edit-tt">Add or scan timetable</button></div></div>`;
+      return `<div class="c-card"><div class="c-h">Set up your semester</div><div class="c-p">${esc(res.error)}</div></div>` + cSemesterForm();
+    }
+    const left = calDiffDays(todayIso(), res.semEnd);
+    const facts = `<div class="c-facts">
+      <div><span>Next holiday</span><b>${res.nextHoliday ? esc(fmtD(res.nextHoliday.date, true)) : '—'}</b><small>${res.nextHoliday ? esc(res.nextHoliday.title) : 'none found'}</small></div>
+      <div><span>Next class day</span><b>${res.nextTeaching ? esc(fmtD(res.nextTeaching, true)) : '—'}</b><small>${res.nextTeaching ? esc(calWeekday(res.nextTeaching)) : 'none left'}</small></div>
+      <div><span>Semester ends</span><b>${esc(fmtD(res.semEnd, true))}</b><small>${left >= 0 ? left + ' days left' : 'ended'}</small></div></div>`;
+    const warns = res.warnings.map(w => `<div class="c-warn ${w.type}">${esc(w.text)}</div>`).join('');
+    const cards = res.subjects.map(s => {
+      const total = s.rem.total + s.done.total, pct = total ? Math.round(s.done.total / total * 100) : 0;
+      return `<button class="c-sub" data-act="subject" data-name="${esc(s.name)}"><div class="c-sub-l"><div class="c-sub-n">${esc(s.name)}</div>
+        <div class="c-sub-s">${s.rem.lec} lecture${s.rem.lec === 1 ? '' : 's'} · ${s.rem.lab} lab${s.rem.lab === 1 ? '' : 's'} left</div>
+        <div class="c-bar"><i style="width:${pct}%"></i></div><div class="c-sub-s">${s.done.total} done · ${total} in total</div></div>
+        <div class="c-big">${s.rem.total}</div></button>`;
+    }).join('');
+    const up = res.upcoming.length ? `<div class="c-h2">Coming up</div>` + res.upcoming.map(u => `<div class="c-line"><span class="c-tag ${esc(u.category)}">${esc(CAT[u.category])}</span><span>${esc(fmtD(u.date, true))} · ${esc(u.title)}${u.partial ? ' (some classes)' : ''}</span></div>`).join('') : '';
+    return `<div class="c-card c-top"><div><div class="c-h">${esc(cal.semester.name || 'This semester')}</div><div class="c-p">${esc(fmtD(cal.semester.start, true))} – ${esc(fmtD(cal.semester.end, true))} · counting from <b>${esc(fmtD(res.calc, true))}</b></div></div></div>
+      ${warns}${facts}<div class="c-h2">Remaining class sessions</div>${cards}${up}
+      <div class="c-foot">Calculated ${esc(fmtStamp(res.snapshot.calculatedAt))} · calendar changed ${esc(fmtStamp(cal.updatedAt))} · timetable v${esc(res.snapshot.timetableVersion)}. A double-period lab counts as one session.</div>`;
+  }
+
+  function cViewSubject(){
+    const res = CS.res || calCompute(cal, weeklySchedule, todayIso(), new Date().toISOString());
+    const s = res.ok && res.subjects.find(x => x.name === CS.subject);
+    if (!s) return '<div class="c-empty">Subject not found.</div>';
+    const dates = CS.showAll ? s.dates : s.dates.slice(0, 12);
+    const list = dates.length ? dates.map(d => `<div class="c-line"><b>${esc(fmtD(d.date))}</b><span>${esc(timeLabel(d))}</span></div>`).join('') : '<div class="c-empty">No sessions left.</div>';
+    const more = s.dates.length > 12 ? `<button class="btn btn-secondary btn-sm" data-act="toggle-all">${CS.showAll ? 'Show fewer' : 'Show all ' + s.dates.length}</button>` : '';
+    const ex = s.excluded.length ? s.excluded.map(x => `<div class="c-line c-ex"><div><b>${esc(fmtD(x.date))}</b> · ${esc(timeLabel(x))}</div>
+      <div><span class="c-tag ${esc(x.reason.category)}">${esc(CAT[x.reason.category] || 'Rule')}</span> ${esc(x.reason.title)}
+      ${x.reason.entryId ? `<button class="c-link" data-act="edit-entry" data-id="${esc(x.reason.entryId)}">view entry</button>` : '<button class="c-link" data-act="goto-settings">view rules</button>'}</div></div>`).join('')
+      : '<div class="c-empty">Nothing excluded.</div>';
+    return `<div class="c-card c-center"><div class="c-big2">${s.rem.total}</div><div class="c-p">sessions remaining</div>
+      <div class="c-p">${s.rem.lec} lecture${s.rem.lec === 1 ? '' : 's'} · ${s.rem.lab} lab${s.rem.lab === 1 ? '' : 's'}</div>
+      <div class="c-p">${s.done.total} sessions were scheduled before ${esc(fmtD(res.calc, true))}</div></div>
+      <div class="c-h2">Upcoming sessions</div>${list}${more}
+      <div class="c-h2">Excluded sessions (${s.excluded.length})</div>${ex}`;
+  }
+
+  function cEntryCard(e, calc){
+    const past = (e.end || e.start) < calc;
+    return `<div class="c-entry${past ? ' past' : ''}"><div class="c-entry-top"><span class="c-tag ${esc(e.category)}">${esc(CAT[e.category])}</span>
+      ${e.status === 'pending' ? '<span class="c-tag pending">Needs check</span>' : ''}${e.origin === 'user' ? '<span class="c-tag mine">My override</span>' : ''}</div>
+      <div class="c-entry-t">${esc(e.title || CAT[e.category])}</div><div class="c-p">${esc(fmtRange(e))} · ${esc(scopeText(e))}</div>
+      <div class="c-row2"><button class="btn btn-secondary btn-sm" data-act="edit-entry" data-id="${esc(e.id)}">Edit</button>${e.status === 'pending' ? `<button class="btn btn-primary btn-sm" data-act="confirm-entry" data-id="${esc(e.id)}">Confirm</button>` : ''}</div></div>`;
+  }
+  function cViewCalendar(){
+    const list = cal.entries.slice().sort((a, b) => a.start < b.start ? -1 : a.start > b.start ? 1 : 0);
+    const pending = list.filter(e => e.status === 'pending').length;
+    const calc = calValidIso(cal.calcDate) ? cal.calcDate : todayIso();
+    const cards = list.length ? list.map(e => cEntryCard(e, calc)).join('') : '<div class="c-empty">No holidays, exams or events yet. Import your university calendar or add entries by hand.</div>';
+    return `<div class="c-row2"><button class="btn btn-primary" data-act="add-entry">+ Add entry</button><button class="btn btn-secondary" data-act="import">Import file</button></div>
+      ${pending ? `<div class="c-warn warn">${pending} entr${pending > 1 ? 'ies need' : 'y needs'} checking and ${pending > 1 ? 'are' : 'is'} not counted. <button class="c-link" data-act="confirm-all">Confirm all</button></div>` : ''}
+      <div class="c-list">${cards}</div><div class="c-msg" id="cMsg"></div>`;
+  }
+
+  function cViewEntry(){
+    const d = CS.draft;
+    const catOpts = Object.keys(CAT).map(k => `<option value="${k}"${d.category === k ? ' selected' : ''}>${CAT[k]}</option>`).join('');
+    const canScope = d.category === 'holiday' || d.category === 'exam' || d.category === 'event';
+    const scope = canScope ? `<label class="name-label">Which classes are affected?</label>
+      <select class="name-input" data-f="scope"><option value="full"${d.scope !== 'partial' ? ' selected' : ''}>Whole day (all classes)</option><option value="partial"${d.scope === 'partial' ? ' selected' : ''}>Only a time window</option></select>
+      ${d.scope === 'partial' ? `<div class="c-grid2"><div><label class="name-label">From</label><input class="name-input" type="time" data-f="from" value="${esc(d.from)}" /></div><div><label class="name-label">To</label><input class="name-input" type="time" data-f="to" value="${esc(d.to)}" /></div></div>` : ''}` : '';
+    const working = d.category === 'working' ? `<label class="name-label">Timetable to follow</label>
+      <select class="name-input" data-f="useDay"><option value="">That weekday's own timetable</option>${CAL_DAYS.map(x => `<option value="${x}"${d.useDay === x ? ' selected' : ''}>${x}'s timetable</option>`).join('')}</select>
+      <div class="c-p">A working day does not create classes by itself. If that weekday has no timetable, pick one here.</div>` : '';
+    return `<label class="name-label">Description</label><input class="name-input" data-f="title" maxlength="80" placeholder="e.g. Dussehra" value="${esc(d.title)}" />
+      <label class="name-label">Type</label><select class="name-input" data-f="category">${catOpts}</select>
+      <div class="c-grid2"><div><label class="name-label">Date</label><input class="name-input" type="date" data-f="start" value="${esc(d.start)}" /></div>
+      <div><label class="name-label">Until (optional)</label><input class="name-input" type="date" data-f="end" value="${esc(d.end)}" /></div></div>
+      ${scope}${working}
+      <label class="name-label">Where did this come from?</label>
+      <select class="name-input" data-f="origin"><option value="official"${d.origin !== 'user' ? ' selected' : ''}>Official university calendar</option><option value="user"${d.origin === 'user' ? ' selected' : ''}>My own correction</option></select>
+      <label class="c-check"><input type="checkbox" data-f="status"${d.status !== 'pending' ? ' checked' : ''} /> I have checked this entry (it will be counted)</label>
+      <div class="c-row2"><button class="btn btn-primary" data-act="save-entry">Save</button>${d.isNew ? '' : '<button class="btn btn-warn" data-act="del-entry">Delete</button>'}</div><div class="c-msg" id="cMsg"></div>`;
+  }
+
+  function cViewImport(){
+    return `<div class="c-p">Upload the university holiday list or academic calendar. BunkSafe reads it on your phone and shows what it found, so you can fix anything before it is used. Nothing is counted until you confirm it.</div>
+      <label class="name-label">What is this file?</label>
+      <select class="name-input" id="iHint"><option value="holiday">Holiday list</option><option value="auto">Academic calendar (mixed)</option><option value="exam">Exam schedule</option><option value="event">College events</option></select>
+      <label class="name-label">File (PDF, Excel, CSV, or a clear photo)</label>
+      <input class="name-input" id="iFile" type="file" accept=".pdf,.csv,.txt,.xlsx,.xls,image/*" />
+      <label class="name-label">Or paste the text here</label>
+      <textarea class="name-input" id="iText" rows="5" placeholder="15-08-2026  Independence Day&#10;02-10-2026  Gandhi Jayanti"></textarea>
+      <div class="c-row2"><button class="btn btn-primary" data-act="read-text">Read pasted text</button></div><div class="c-msg" id="cMsg"></div>`;
+  }
+  function cViewReview(){
+    const rows = CS.rows;
+    const inc = rows.filter(r => r.include).length;
+    const items = rows.map((r, i) => {
+      const catOpts = Object.keys(CAT).map(k => `<option value="${k}"${r.category === k ? ' selected' : ''}>${CAT[k]}</option>`).join('');
+      const can = r.category === 'holiday' || r.category === 'exam' || r.category === 'event';
+      return `<div class="c-entry${r.dup ? ' past' : ''}"><div class="c-entry-top"><label class="c-check"><input type="checkbox" data-r="${i}" data-f="include"${r.include ? ' checked' : ''} /> Add</label>
+        ${r.dup ? '<span class="c-tag mine">Already added</span>' : (r.uncertain && !r.ok ? '<span class="c-tag pending">Needs check</span>' : '<span class="c-tag working">OK</span>')}</div>
+        <input class="name-input" data-r="${i}" data-f="title" value="${esc(r.title)}" placeholder="Description" />
+        <div class="c-grid2"><div><label class="name-label">Date</label><input class="name-input" type="date" data-r="${i}" data-f="start" value="${esc(r.start)}" /></div><div><label class="name-label">Until (optional)</label><input class="name-input" type="date" data-r="${i}" data-f="end" value="${esc(r.end)}" /></div></div>
+        <div class="c-grid2"><select class="name-input" data-r="${i}" data-f="category">${catOpts}</select>
+        ${can ? `<select class="name-input" data-r="${i}" data-f="scope"><option value="full"${r.scope !== 'partial' ? ' selected' : ''}>Whole day</option><option value="partial"${r.scope === 'partial' ? ' selected' : ''}>Time window</option></select>` : '<span></span>'}</div>
+        ${r.category === 'working' ? `<label class="name-label">Timetable to follow</label><select class="name-input" data-r="${i}" data-f="useDay"><option value="">That weekday's own timetable</option>${CAL_DAYS.map(x => `<option value="${x}"${r.useDay === x ? ' selected' : ''}>${x}'s timetable</option>`).join('')}</select>` : ''}
+        ${can && r.scope === 'partial' ? `<div class="c-grid2"><input class="name-input" type="time" data-r="${i}" data-f="from" value="${esc(r.from || '')}" /><input class="name-input" type="time" data-r="${i}" data-f="to" value="${esc(r.to || '')}" /></div>` : ''}
+        ${r.note && !r.ok ? `<div class="c-p">${esc(r.note)}</div>` : ''}</div>`;
+    }).join('');
+    return `<div class="c-p">${rows.length} date${rows.length === 1 ? '' : 's'} found in <b>${esc(CS.fileName)}</b>. Check each one. Entries marked “Needs check” are saved as not counted until you confirm them.</div>
+      ${rows.length ? items : '<div class="c-empty">No dates were found. Try another file, a clearer photo, or paste the text.</div>'}
+      <div class="c-row2"><button class="btn btn-primary" data-act="import-save"${rows.length ? '' : ' disabled'}>Add ${inc} selected</button><button class="btn btn-secondary" data-act="import">Back</button></div><div class="c-msg" id="cMsg"></div>`;
+  }
+
+  function cBaseSubjects(){
+    const m = new Map();
+    CAL_DAYS.forEach(d => (weeklySchedule[d] || []).forEach(s => {
+      if (!s || !s.label) return;
+      const x = calSubjectOf(s.label, null), k = x.name.toLowerCase();
+      if (!m.has(k)) m.set(k, x.name);
+    }));
+    return [...m.entries()];
+  }
+  function cViewSettings(){
+    const rules = cal.rules.length ? cal.rules.map(r => `<div class="c-line"><label class="c-check"><input type="checkbox" data-set="rule" data-id="${esc(r.id)}"${r.enabled ? ' checked' : ''} /> Every ${['', '1st', '2nd', '3rd', '4th', '5th'][r.ordinal]} ${esc(r.weekday)} is a holiday</label><button class="c-link" data-act="rule-del" data-id="${esc(r.id)}">remove</button></div>`).join('')
+      : '<div class="c-p">No recurring rules yet.</div>';
+    const subs = cBaseSubjects().map(([k, base]) => `<div class="c-grid2"><span class="c-p">${esc(base)}</span><input class="name-input" data-alias="${esc(k)}" maxlength="40" value="${esc(cal.aliases[k] || base)}" /></div>`).join('') || '<div class="c-p">Add your timetable to see subjects.</div>';
+    return cSemesterForm() + `
+      <div class="c-card"><div class="c-h2">Count from</div><div class="c-grid2"><input class="name-input" type="date" data-set="calc" value="${esc(cal.calcDate || '')}" /><button class="btn btn-secondary btn-sm" data-act="calc-today">Use today</button></div>
+        <div class="c-p">Leave empty to always count from today.</div></div>
+      <div class="c-card"><div class="c-h2">Recurring rules</div>${rules}
+        <div class="c-grid3"><select class="name-input" id="rOrd"><option value="1">1st</option><option value="2">2nd</option><option value="3" selected>3rd</option><option value="4">4th</option><option value="5">5th</option></select>
+        <select class="name-input" id="rDay">${CAL_DAYS.map(d => `<option${d === 'Saturday' ? ' selected' : ''}>${d}</option>`).join('')}</select><button class="btn btn-secondary btn-sm" data-act="rule-add">Add</button></div>
+        <div class="c-p">Example: 3rd Saturday. An official working-day entry overrides a rule.</div></div>
+      <div class="c-card"><div class="c-h2">Priority</div><label class="c-check"><input type="checkbox" data-set="userwins"${cal.userWins ? ' checked' : ''} /> My own corrections win over the official calendar</label>
+        <div class="c-p">Normally the official calendar wins when both say something different.</div></div>
+      <div class="c-card"><div class="c-h2">Subject names</div><div class="c-p">Rename a subject, or give two the same name to combine them.</div>${subs}</div>
+      <div class="c-card"><div class="c-h2">Timetable</div><div class="c-p">Sessions come from your timetable.</div><div class="c-row2"><button class="btn btn-secondary" data-act="edit-tt">Edit or scan timetable</button></div></div>
+      <div class="c-card"><div class="c-h2">Backup</div><div class="c-row2"><button class="btn btn-secondary" data-act="backup">Show backup text</button></div>
+        <textarea class="name-input" id="bText" rows="4" placeholder="Backup text appears here. To restore, paste it here and tap Restore."></textarea>
+        <div class="c-row2"><button class="btn btn-secondary btn-sm" data-act="copy-backup">Copy</button><button class="btn btn-secondary btn-sm" data-act="restore">Restore</button><button class="btn btn-warn btn-sm" data-act="reset">Erase calendar data</button></div></div><div class="c-msg" id="cMsg"></div>`;
+  }
+
+  /* ----- import helpers ----- */
+  const XLSX_URL = 'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';
+  const PDFJS_URL = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js';
+  const PDFJS_WORKER = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+  const IMPORT_MAX_MB = 15;
+  function calLoadScript(src, test){
+    if (test()) return Promise.resolve();
+    return new Promise((res, rej) => {
+      const s = document.createElement('script');
+      s.src = src; s.onload = res; s.onerror = () => rej(new Error('NETWORK'));
+      document.head.appendChild(s);
+    });
+  }
+  function wordsToLines(words){
+    if (!words.length) return [];
+    const hs = words.map(w => w.y1 - w.y0).sort((a, b) => a - b);
+    const H = hs[Math.floor(hs.length / 2)] || 14;
+    const sorted = words.slice().sort((a, b) => (a.y0 + a.y1) - (b.y0 + b.y1));
+    const lines = [];
+    sorted.forEach(w => {
+      const cy = (w.y0 + w.y1) / 2, last = lines[lines.length - 1];
+      if (last && Math.abs(cy - last.cy) <= 0.6 * H){ last.ws.push(w); last.cy = (last.cy * (last.ws.length - 1) + cy) / last.ws.length; }
+      else lines.push({ cy, ws:[w] });
+    });
+    return lines.map(l => {
+      l.ws.sort((a, b) => a.x0 - b.x0);
+      let out = '';
+      l.ws.forEach((w, i) => { if (i) out += (w.x0 - l.ws[i - 1].x1 > 1.5 * H) ? ' | ' : ' '; out += w.text; });
+      return out;
+    });
+  }
+  /* pdf.js text items -> lines (items: {text,x0,x1,y,h}) */
+  function pdfItemsToLines(items){
+    const sorted = items.slice().sort((a, b) => b.y - a.y || a.x0 - b.x0);
+    const lines = [];
+    sorted.forEach(it => {
+      const last = lines[lines.length - 1];
+      if (last && Math.abs(last.y - it.y) <= Math.max(2.5, it.h * 0.35)) last.its.push(it);
+      else lines.push({ y:it.y, its:[it] });
+    });
+    return lines.map(l => {
+      l.its.sort((a, b) => a.x0 - b.x0);
+      let out = '';
+      l.its.forEach((it, i) => { if (i){ const gap = it.x0 - l.its[i - 1].x1; out += gap > 14 ? ' | ' : (gap > 1 ? ' ' : ''); } out += it.text; });
+      return out;
+    });
+  }
+  function canvasGray(cv){
+    const ctx = cv.getContext('2d', { willReadFrequently:true });
+    const d = ctx.getImageData(0, 0, cv.width, cv.height).data;
+    const g = new Uint8ClampedArray(cv.width * cv.height);
+    for (let i = 0, j = 0; i < g.length; i++, j += 4) g[i] = (d[j] * 299 + d[j + 1] * 587 + d[j + 2] * 114) / 1000;
+    return { gray:g, w:cv.width, h:cv.height };
+  }
+  async function ocrLines(gray, w, h){
+    await loadTesseract();
+    const worker = await getWorker();
+    progressHandler = m => { if (m.status === 'recognizing text') cMsg('Reading… ' + Math.round((m.progress || 0) * 100) + '%', 'warn'); };
+    const words = await ocrWords(worker, gray, w, h, false);
+    progressHandler = null;
+    return wordsToLines(words);
+  }
+  async function fileToText(file){
+    const name = file.name.toLowerCase();
+    if (file.size > IMPORT_MAX_MB * 1048576) throw new Error('That file is bigger than ' + IMPORT_MAX_MB + ' MB.');
+    if (/\.(csv|txt)$/.test(name) || file.type === 'text/csv' || file.type === 'text/plain'){
+      const t = await file.text();
+      return /\.txt$/.test(name) ? t : calRowsToText(calParseCsv(t));
+    }
+    if (/\.(xlsx|xls)$/.test(name)){
+      cMsg('Loading spreadsheet reader…', 'warn');
+      await calLoadScript(XLSX_URL, () => window.XLSX);
+      const wb = window.XLSX.read(await file.arrayBuffer(), { type:'array' });
+      let rows = [];
+      wb.SheetNames.forEach(n => { rows = rows.concat(window.XLSX.utils.sheet_to_json(wb.Sheets[n], { header:1, raw:false, dateNF:'yyyy-mm-dd', defval:'' })); });
+      return calRowsToText(rows);
+    }
+    if (/\.pdf$/.test(name) || file.type === 'application/pdf'){
+      cMsg('Loading PDF reader…', 'warn');
+      await calLoadScript(PDFJS_URL, () => window.pdfjsLib);
+      window.pdfjsLib.GlobalWorkerOptions.workerSrc = PDFJS_WORKER;
+      const pdf = await window.pdfjsLib.getDocument({ data:await file.arrayBuffer() }).promise;
+      let lines = [];
+      for (let p = 1; p <= Math.min(pdf.numPages, 40); p++){
+        const tc = await (await pdf.getPage(p)).getTextContent();
+        lines = lines.concat(pdfItemsToLines(tc.items.filter(i => i.str && i.str.trim()).map(i => ({ text:i.str, x0:i.transform[4], x1:i.transform[4] + i.width, y:i.transform[5], h:Math.abs(i.transform[3]) || 10 }))));
+      }
+      if (lines.join('').length < 30){          // scanned PDF: read the pages as pictures
+        lines = [];
+        for (let p = 1; p <= Math.min(pdf.numPages, 6); p++){
+          cMsg('Scanned PDF, reading page ' + p + '…', 'warn');
+          const page = await pdf.getPage(p), vp = page.getViewport({ scale:2.2 });
+          const cv = document.createElement('canvas'); cv.width = vp.width; cv.height = vp.height;
+          const ctx = cv.getContext('2d'); ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, cv.width, cv.height);
+          await page.render({ canvasContext:ctx, viewport:vp }).promise;
+          const g = canvasGray(cv);
+          lines = lines.concat(await ocrLines(g.gray, g.w, g.h));
+        }
+      }
+      return lines.join('\n');
+    }
+    if (/^image\//.test(file.type) || /\.(png|jpe?g|webp|bmp)$/.test(name)){
+      cMsg('Preparing image…', 'warn');
+      const g = await prepareGray(file);
+      return (await ocrLines(g.gray, g.w, g.h)).join('\n');
+    }
+    throw new Error('Please choose a PDF, Excel, CSV, text file or a photo.');
+  }
+  function cStartReview(text, name){
+    const hint = (document.getElementById('iHint') || {}).value || CS.hint || 'holiday';
+    CS.hint = hint;
+    const rows = calParseText(text, { semStart:cal.semester.start, semEnd:cal.semester.end, year:new Date().getFullYear(), hint });
+    calMarkDuplicates(rows, cal.entries);
+    rows.forEach(r => { r.include = !r.dup; r.ok = false; r.from = ''; r.to = ''; });
+    CS.rows = rows; CS.fileName = name; CS.view = 'review';
+    cRender();
+  }
+  function cCleanEntry(e){
+    const canScope = e.category === 'holiday' || e.category === 'exam' || e.category === 'event';
+    return { id:e.id || newId(), title:String(e.title || '').trim().slice(0, 80), category:e.category, start:e.start, end:(e.end && e.end !== e.start) ? e.end : '',
+      scope:canScope ? (e.scope === 'partial' ? 'partial' : 'full') : 'full', from:e.scope === 'partial' && canScope ? e.from : '', to:e.scope === 'partial' && canScope ? e.to : '',
+      useDay:e.category === 'working' ? (e.useDay || '') : '', origin:e.origin === 'user' ? 'user' : 'official', status:e.status === 'pending' ? 'pending' : 'confirmed', source:e.source || '' };
+  }
+  function cValidateEntry(e){
+    if (!calValidIso(e.start)) return 'Please choose a valid date.';
+    if (e.end && !calValidIso(e.end)) return 'The "until" date is not valid.';
+    if (e.end && e.end < e.start) return 'The "until" date is before the first date.';
+    if (e.scope === 'partial' && (e.category === 'holiday' || e.category === 'exam' || e.category === 'event')){
+      if (!e.from || !e.to) return 'Enter both times for the time window.';
+      if (e.from >= e.to) return 'The "from" time must be before the "to" time.';
+    }
+    return '';
+  }
+
+  /* ----- wiring ----- */
+  function cOpen(){ CS.view = 'main'; calOverlay.classList.add('open'); cRender(); }
+  calBtn.addEventListener('click', cOpen);
+  document.getElementById('calClose').addEventListener('click', () => calOverlay.classList.remove('open'));
+  document.getElementById('calBack').addEventListener('click', () => {
+    if (CS.view === 'review'){ CS.view = 'import'; cRender(); }
+    else if (CS.view === 'import' || CS.view === 'entry'){ CS.view = 'main'; CS.tab = 'calendar'; cRender(); }
+    else if (CS.view === 'subject'){ CS.view = 'main'; CS.tab = 'summary'; cRender(); }
+    else calOverlay.classList.remove('open');
+  });
+  cTabs.addEventListener('click', e => {
+    const t = e.target.closest('[data-act="tab"]');
+    if (t){ CS.tab = t.dataset.t; cRender(); cBody.scrollTop = 0; }
+  });
+  cBody.addEventListener('change', e => {
+    const t = e.target;
+    if (t.dataset.r !== undefined){
+      const r = CS.rows[Number(t.dataset.r)], f = t.dataset.f;
+      if (!r) return;
+      if (f === 'include') r.include = t.checked;
+      else { r[f] = t.value; r.ok = true; if (f === 'category' || f === 'scope') cRender(); }
+      if (f === 'include') { const b = cBody.querySelector('[data-act="import-save"]'); if (b) b.textContent = 'Add ' + CS.rows.filter(x => x.include).length + ' selected'; }
+    } else if (t.dataset.f && CS.draft){
+      const f = t.dataset.f;
+      CS.draft[f] = f === 'status' ? (t.checked ? 'confirmed' : 'pending') : t.value;
+      if (f === 'category' || f === 'scope') cRender();
+    } else if (t.dataset.set === 'calc'){ cal.calcDate = t.value; calSave(false); }
+    else if (t.dataset.set === 'userwins'){ cal.userWins = t.checked; calSave(true); }
+    else if (t.dataset.set === 'rule'){ const r = cal.rules.find(x => x.id === t.dataset.id); if (r){ r.enabled = t.checked; calSave(true); } }
+    else if (t.dataset.alias){
+      const k = t.dataset.alias, base = (cBaseSubjects().find(x => x[0] === k) || [k, ''])[1], v = t.value.trim();
+      if (!v || v === base) delete cal.aliases[k]; else cal.aliases[k] = v.slice(0, 40);
+      calSave(true);
+    } else if (t.id === 'iFile' && t.files && t.files[0]){
+      const file = t.files[0]; t.value = '';
+      (async () => {
+        try{ cMsg('Reading file…', 'warn'); cStartReview(await fileToText(file), file.name); }
+        catch(err){ cMsg(err && err.message === 'NETWORK' ? 'Could not load the reader. Check your internet, or paste the text instead.' : (err && err.message) || 'Could not read that file. Try CSV, or paste the text.', 'err'); }
+      })();
+    }
+  });
+  cBody.addEventListener('click', async e => {
+    const t = e.target.closest('[data-act]');
+    if (!t) return;
+    const act = t.dataset.act, id = t.dataset.id;
+    try{
+      if (act === 'tab'){ CS.tab = t.dataset.t; cRender(); }
+      else if (act === 'subject'){ CS.subject = t.dataset.name; CS.showAll = false; CS.view = 'subject'; cRender(); cBody.scrollTop = 0; }
+      else if (act === 'toggle-all'){ CS.showAll = !CS.showAll; cRender(); }
+      else if (act === 'goto-settings'){ CS.view = 'main'; CS.tab = 'settings'; cRender(); }
+      else if (act === 'edit-tt'){ calOverlay.classList.remove('open'); openEditor(); }
+      else if (act === 'save-sem'){
+        const s = { name:document.getElementById('sName').value.trim(), start:document.getElementById('sStart').value, end:document.getElementById('sEnd').value };
+        if (!calValidIso(s.start) || !calValidIso(s.end)){ cMsg('Please choose both dates.', 'err'); return; }
+        if (s.end < s.start){ cMsg('The end date must be after the start date.', 'err'); return; }
+        cal.semester = s; calSave(true); cRender(); cMsg('Saved.', 'ok');
+      }
+      else if (act === 'add-entry'){ CS.draft = { isNew:true, title:'', category:'holiday', start:'', end:'', scope:'full', from:'', to:'', useDay:'', origin:'official', status:'confirmed' }; CS.view = 'entry'; cRender(); }
+      else if (act === 'edit-entry'){ const en = cal.entries.find(x => x.id === id); if (en){ CS.draft = Object.assign({ isNew:false, from:'', to:'' }, en); CS.view = 'entry'; cRender(); } }
+      else if (act === 'save-entry'){
+        const d = CS.draft, clean = cCleanEntry(d), err = cValidateEntry(clean);
+        if (err){ cMsg(err, 'err'); return; }
+        if (!clean.title) clean.title = CAT[clean.category];
+        const i = cal.entries.findIndex(x => x.id === clean.id);
+        if (i >= 0) cal.entries[i] = clean; else cal.entries.push(clean);
+        calSave(true); CS.view = 'main'; CS.tab = 'calendar'; cRender(); cMsg('Saved.', 'ok');
+      }
+      else if (act === 'del-entry'){
+        if (t.dataset.armed !== '1'){ t.dataset.armed = '1'; t.textContent = 'Tap again to delete'; setTimeout(() => { t.dataset.armed = ''; t.textContent = 'Delete'; }, 3500); return; }
+        cal.entries = cal.entries.filter(x => x.id !== CS.draft.id); calSave(true); CS.view = 'main'; CS.tab = 'calendar'; cRender();
+      }
+      else if (act === 'confirm-entry'){ const en = cal.entries.find(x => x.id === id); if (en){ en.status = 'confirmed'; calSave(true); cRender(); } }
+      else if (act === 'confirm-all'){ cal.entries.forEach(x => { x.status = 'confirmed'; }); calSave(true); cRender(); }
+      else if (act === 'import'){ CS.view = 'import'; cRender(); }
+      else if (act === 'read-text'){
+        const txt = document.getElementById('iText').value;
+        if (!txt.trim()){ cMsg('Paste some text first.', 'err'); return; }
+        cStartReview(txt, 'pasted text');
+      }
+      else if (act === 'import-save'){
+        const chosen = CS.rows.filter(r => r.include);
+        if (!chosen.length){ cMsg('Tick at least one row.', 'err'); return; }
+        const made = [];
+        for (const r of chosen){
+          const en = cCleanEntry({ title:r.title, category:r.category, start:r.start, end:r.end, scope:r.scope, from:r.from, to:r.to, useDay:r.useDay, origin:'official', status:(r.uncertain && !r.ok) ? 'pending' : 'confirmed', source:CS.fileName });
+          const err = cValidateEntry(en);
+          if (err){ cMsg((r.title || r.start || 'A row') + ': ' + err, 'err'); return; }
+          if (!en.title) en.title = CAT[en.category];
+          made.push(en);
+        }
+        cal.entries = cal.entries.concat(made); calSave(true);
+        CS.view = 'main'; CS.tab = 'calendar'; cRender(); cMsg(made.length + ' entr' + (made.length > 1 ? 'ies' : 'y') + ' added.', 'ok');
+      }
+      else if (act === 'calc-today'){ cal.calcDate = ''; calSave(false); cRender(); }
+      else if (act === 'rule-add'){
+        const ord = Number(document.getElementById('rOrd').value), day = document.getElementById('rDay').value;
+        if (!cal.rules.some(r => r.ordinal === ord && r.weekday === day)){ cal.rules.push({ id:newId(), ordinal:ord, weekday:day, enabled:true }); calSave(true); }
+        cRender();
+      }
+      else if (act === 'rule-del'){ cal.rules = cal.rules.filter(r => r.id !== id); calSave(true); cRender(); }
+      else if (act === 'backup'){ document.getElementById('bText').value = JSON.stringify(cal); cMsg('Copy this text and keep it somewhere safe.', 'ok'); }
+      else if (act === 'copy-backup'){
+        const ta = document.getElementById('bText'); if (!ta.value) ta.value = JSON.stringify(cal);
+        try{ await navigator.clipboard.writeText(ta.value); cMsg('Copied.', 'ok'); }catch(_){ ta.select(); cMsg('Select the text and copy it.', 'warn'); }
+      }
+      else if (act === 'restore'){
+        let p; try{ p = JSON.parse(document.getElementById('bText').value); }catch(_){ cMsg('That text is not a valid backup.', 'err'); return; }
+        if (!p || !p.semester || !Array.isArray(p.entries)){ cMsg('That text is not a BunkSafe calendar backup.', 'err'); return; }
+        cal = Object.assign({ v:1, semester:{ name:'', start:'', end:'' }, calcDate:'', rules:[], entries:[], aliases:{}, userWins:false, updatedAt:'' }, p);
+        calSave(true); cRender(); cMsg('Backup restored.', 'ok');
+      }
+      else if (act === 'reset'){
+        if (t.dataset.armed !== '1'){ t.dataset.armed = '1'; t.textContent = 'Tap again to erase'; setTimeout(() => { t.dataset.armed = ''; t.textContent = 'Erase calendar data'; }, 3500); return; }
+        cal = { v:1, semester:{ name:'', start:'', end:'' }, calcDate:'', rules:[], entries:[], aliases:{}, userWins:false, updatedAt:'' }; calSave(true); cRender();
+      }
+    }catch(err){ cMsg((err && err.message) || 'Something went wrong.', 'err'); }
   });
 
   editBtn.addEventListener('click', openEditor);
@@ -694,7 +1819,7 @@
     const appEl = document.getElementById('app');
     let sx = 0, sy = 0, st = 0, tracking = false;
     appEl.addEventListener('touchstart', e => {
-      if (editorOverlay.classList.contains('open')) { tracking = false; return; }
+      if (editorOverlay.classList.contains('open') || calOverlay.classList.contains('open')) { tracking = false; return; }
       if (e.target.closest && e.target.closest('input, button')) { tracking = false; return; }
       const t = e.touches[0];
       sx = t.clientX; sy = t.clientY; st = Date.now(); tracking = true;
@@ -709,7 +1834,7 @@
       changeDay(dx < 0 ? 1 : -1);
     }, { passive:true });
     document.addEventListener('keydown', e => {
-      if (editorOverlay.classList.contains('open')) return;
+      if (editorOverlay.classList.contains('open') || calOverlay.classList.contains('open')) return;
       if (e.key === 'ArrowLeft') changeDay(-1);
       if (e.key === 'ArrowRight') changeDay(1);
     });
