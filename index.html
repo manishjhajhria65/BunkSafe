@@ -210,6 +210,8 @@
   .c-grid3{ display:grid; grid-template-columns:1fr 1.5fr auto; gap:8px; align-items:center; }
   .c-check{ display:flex; gap:8px; align-items:center; font-size:13.5px; color:var(--text); }
   .c-check input{ width:18px; height:18px; flex:0 0 auto; }
+  .c-counter{ justify-content:space-between; }
+  .c-count{ font-family:var(--font-mono); font-size:18px; min-width:30px; text-align:center; }
   .c-link{ background:none; border:none; color:var(--c-steel); font-weight:700; font-size:12.5px; text-decoration:underline; cursor:pointer; padding:0 4px; }
   .c-msg{ min-height:18px; font-size:12.5px; font-weight:600; text-align:center; color:var(--c-moss); }
   .c-msg.err{ color:var(--c-rust); } .c-msg.warn{ color:var(--c-amber); }
@@ -301,7 +303,7 @@
       </div>
       <ul class="timeline" id="timeline"></ul>
 
-      <footer>Swipe left or right to change day. Tap ✎ to scan or edit your timetable.</footer>
+      <footer>Swipe left or right on the schedule to change day. Swipe right on empty space to open the calendar. Tap ✎ to scan or edit your timetable.<br><span style="opacity:.8">Version 2026.10.27-7</span></footer>
 
       <!-- ---------------- Academic calendar ---------------- -->
       <div class="cal-overlay" id="calOverlay">
@@ -588,6 +590,7 @@ function parseTimetableWords(rawWords){
       if (lineTexts.length > 1 && /\d/.test(lastLine)) label = lineTexts.slice(0, -1).join(' ') + ' — ' + lastLine;
       else label = lineTexts.join(' ');
       label = label.replace(/^[\s\-–—:.,]+|[\s\-–—:.,]+$/g,'');
+      if (label.indexOf(' — ') < 0){ const sp = calSplitRoom(label); if (sp.room && sp.name) label = sp.name + ' — ' + sp.room; }
       if (label.length < 2 || !/[A-Za-z0-9]/.test(label) || SKIP.test(label)) return;
 
       // which columns does this cluster cover?
@@ -1043,9 +1046,23 @@ function calWeekday(iso){ return CAL_DAYS[calParse(iso).getDay()]; }
 function calOrdinal(iso){ return Math.floor((calParse(iso).getDate() - 1) / 7) + 1; }
 function calDiffDays(a, b){ return Math.round((calParse(b) - calParse(a)) / 864e5); }
 
-/* Subject name from a timetable label such as "Python Lab — VIB 411" */
+/* Split "CN VIB 403" / "CN — VIB 403" / "Maths II (NYB-313)" into subject and room */
+const CAL_ROOM_SKIP = /^(LAB|ROOM|UNIT|PART|SEM|YEAR|CLASS|SEC|BATCH|GROUP|SET|PAPER)$/;
+function calSplitRoom(text){
+  let name = String(text || '').trim(), room = '';
+  const dash = name.split(/\s+[—–|]\s+|\s+-\s+/);
+  if (dash.length > 1){ name = dash[0].trim(); room = dash.slice(1).join(' ').trim(); }
+  for (let i = 0; i < 2; i++){
+    const m = /^(.*\S)(?:\s+|\s*[\(\[]\s*)(?:room\s*)?([A-Z]{2,4})[\s\-]?(\d{1,4}[A-Za-z]?)\s*[\)\]]?$/.exec(name);
+    if (!m || CAL_ROOM_SKIP.test(m[2])) break;
+    room = (m[2] + ' ' + m[3] + (room ? ' ' + room : '')).trim();
+    name = m[1].replace(/[\s\-–—|,(:]+$/, '').trim();
+  }
+  return { name, room };
+}
+/* Subject name from a timetable label such as "Python Lab — VIB 411" (rooms are never part of the subject) */
 function calSubjectOf(label, aliases){
-  const raw = String(label || '').split(' — ')[0].trim();
+  const raw = calSplitRoom(label).name;
   const isLab = /\b(lab|laboratory|practical)\b/i.test(raw);
   let name = raw;                       // "Python" and "Python Lab" are separate subjects
   const key = name.toLowerCase();
@@ -1154,8 +1171,21 @@ function calCompute(cal, schedule, todayIso, nowIso){
   if (cal.updatedAt && nowIso){ const age = calDiffDays(String(cal.updatedAt).slice(0, 10), nowIso.slice(0, 10)); if (age > 30) warnings.push({ type:'info', text:'The calendar was last changed ' + age + ' days ago. Check whether the university published a revision.' }); }
 
   const list = [...subjects.values()].sort((a, b) => a.name.localeCompare(b.name));
+  // attendance planner: attend at least ceil(target% x total), so you may miss total - that
+  const pct = Number(cal.attendancePct) > 0 && Number(cal.attendancePct) <= 100 ? Number(cal.attendancePct) : 75;
+  const need = n => Math.ceil(n * pct / 100 - 1e-9);
+  let T = 0, D = 0, R = 0, sumAbs = 0, sumMissed = 0;
+  list.forEach(s => {
+    s.total = s.rem.total + s.done.total;
+    s.required = need(s.total);
+    s.maxAbs = s.total - s.required;
+    s.missed = (cal.missed && Number(cal.missed[s.name])) || 0;
+    s.left = s.maxAbs - s.missed;
+    T += s.total; D += s.done.total; R += s.rem.total; sumAbs += s.maxAbs; sumMissed += s.missed;
+  });
+  const att = { pct, total:T, done:D, remaining:R, required:need(T), maxAbs:T - need(T), subjectSum:sumAbs, missed:sumMissed };
   return {
-    ok:true, calc, semEnd:sem.end, subjects:list, nextHoliday, nextTeaching, upcoming, warnings,
+    ok:true, calc, semEnd:sem.end, subjects:list, att, nextHoliday, nextTeaching, upcoming, warnings,
     snapshot:{ calculatedAt:nowIso || '', calendarVersion:cal.updatedAt || '', timetableVersion:calHash(JSON.stringify(schedule)) }
   };
 }
@@ -1303,9 +1333,53 @@ function calMarkDuplicates(rows, existing){
 }
 
 
+  /* ---------------- Ready-made JECRC data ---------------- */
+/* ---------------- Ready-made data for JECRC University, Semester III (2026-27) ---------------- */
+const TT_PRESET_DB = {
+  Sunday:[],
+  Monday:[{start:"08:00",end:"09:40",label:"Prompt Engg. — NYB 005"},{start:"09:40",end:"10:30",label:"CN — VIB 403"},{start:"12:05",end:"12:50",label:"DMS — NYB 001"}],
+  Tuesday:[{start:"08:00",end:"08:50",label:"DMS — NYB 313"},{start:"09:40",end:"11:20",label:"Python Lab — VIB 411"},{start:"11:20",end:"12:05",label:"OS — VIB 212"}],
+  Wednesday:[{start:"08:00",end:"09:40",label:"Prompt Engg. — NYB 005"},{start:"10:30",end:"11:20",label:"DMS — VIB 212"},{start:"11:20",end:"12:05",label:"Python — VIB 212"}],
+  Thursday:[{start:"08:00",end:"09:40",label:"Python Lab — VIB 206"},{start:"10:30",end:"11:20",label:"CN — NYB 313"},{start:"11:20",end:"12:05",label:"OS — NYB 313"},{start:"12:05",end:"12:50",label:"SE — VIB 312"}],
+  Friday:[{start:"08:00",end:"08:50",label:"OS — NYB 006"},{start:"08:50",end:"09:40",label:"Python — NYB 313"},{start:"10:30",end:"11:20",label:"SE — VIB 312"},{start:"11:20",end:"12:50",label:"CN Lab — VIB 403"}],
+  Saturday:[{start:"10:30",end:"11:20",label:"CN — VIB 212"},{start:"11:20",end:"12:50",label:"OS Lab — VIB 411"}]
+};
+function calPresetJecrc(){
+  const src = 'JECRC calendar 2026-27 / Holiday list 2026';
+  const e = (id, title, category, start, end, extra) => Object.assign({ id:'jecrc-' + id, title, category, start, end:end || '', scope:'full', from:'', to:'', useDay:'', origin:'official', status:'confirmed', source:src }, extra || {});
+  return {
+    semester:{ name:'Semester III (odd 2026-27)', start:'2026-08-17', end:'2026-12-09' },
+    rules:[{ id:'jecrc-rule-3sat', ordinal:3, weekday:'Saturday', enabled:true }],
+    entries:[
+      e('start',   'Semester begins / classes start',                'info',    '2026-08-17'),
+      e('reg',     'Registration (online/offline)',                  'info',    '2026-08-17', '2026-08-19'),
+      e('rakhi',   'Raksha Bandhan',                                 'holiday', '2026-08-28'),
+      e('subchg',  'Last date for subject change / mapping',         'info',    '2026-09-03'),
+      e('janma',   'Janmashtami',                                    'holiday', '2026-09-04'),
+      e('sat19',   'Working Saturday (3rd Saturday exception)',      'working', '2026-09-19'),
+      e('exam1',   'First In-Semester Exam',                         'exam',    '2026-09-21', '2026-09-26'),
+      e('gandhi',  'Mahatma Gandhi Jayanti',                         'holiday', '2026-10-02'),
+      e('dussehra','Dussehra',                                       'holiday', '2026-10-20'),
+      e('karwa',   'Karwa Chauth',                                   'holiday', '2026-10-29'),
+      e('exam2',   'Second In-Semester Exam',                        'exam',    '2026-10-30', '2026-11-05'),
+      e('ex2d1',   'Exam day: 09:45–11:00 and 11:45–13:00 (B.Tech CSE Sem III)', 'info', '2026-10-31'),
+      e('ex2d2',   'Exam day: 09:45–11:00 and 11:45–13:00 (B.Tech CSE Sem III)', 'info', '2026-11-03'),
+      e('ex2d3',   'Exam day: 09:45–11:00 and 11:45–13:00 (B.Tech CSE Sem III)', 'info', '2026-11-05'),
+      e('deepawali','Festival Break (Deepawali)',                    'holiday', '2026-11-06', '2026-11-11'),
+      e('exam3',   'Third In-Semester Exam',                         'exam',    '2026-11-16', '2026-11-20'),
+      e('guru',    'Guru Nanak Jayanti',                             'holiday', '2026-11-24'),
+      e('prac',    'Practical exams / preparatory leave (not counted as a holiday here)', 'info', '2026-11-30', '2026-12-14'),
+      e('cwe',     'Class work ends',                                'info',    '2026-12-09'),
+      e('endsem',  'End Semester Exam',                              'info',    '2026-12-15', '2026-12-30')
+    ]
+  };
+}
+
+
   /* ---------------- Academic calendar: screens ---------------- */
   const CAL_KEY = 'bunksafe-calendar-v1';
-  let cal = { v:1, semester:{ name:'', start:'', end:'' }, calcDate:'', rules:[], entries:[], aliases:{}, userWins:false, updatedAt:'' };
+  const calDefault = () => ({ v:1, semester:{ name:'', start:'', end:'' }, calcDate:'', rules:[], entries:[], aliases:{}, userWins:false, attendancePct:75, missed:{}, updatedAt:'' });
+  let cal = calDefault();
   function calLoad(){
     try{
       const raw = window.localStorage.getItem(CAL_KEY);
@@ -1316,6 +1390,8 @@ function calMarkDuplicates(rows, existing){
       if (!Array.isArray(cal.rules)) cal.rules = [];
       if (!Array.isArray(cal.entries)) cal.entries = [];
       if (!cal.aliases || typeof cal.aliases !== 'object') cal.aliases = {};
+      if (!cal.missed || typeof cal.missed !== 'object') cal.missed = {};
+      if (!(Number(cal.attendancePct) > 0)) cal.attendancePct = 75;
     }catch(e){}
   }
   function calSave(touch){
@@ -1373,34 +1449,60 @@ function calMarkDuplicates(rows, existing){
       <div class="c-row2"><button class="btn btn-primary" data-act="save-sem">Save semester</button></div><div class="c-msg" id="cMsg"></div></div>`;
   }
 
+  function cArm(btn, label){
+    if (btn.dataset.armed === '1') return true;
+    btn.dataset.armed = '1';
+    const old = btn.textContent;
+    btn.textContent = label;
+    setTimeout(() => { btn.dataset.armed = ''; btn.textContent = old; }, 3500);
+    return false;
+  }
+  function applyPresetCal(){
+    const p = calPresetJecrc();
+    cal.semester = p.semester; cal.rules = p.rules; cal.entries = p.entries; cal.calcDate = '';
+    if (!(Number(cal.attendancePct) > 0)) cal.attendancePct = 75;
+    calSave(true);
+  }
+  function cPresets(){
+    return `<div class="c-card"><div class="c-h2" style="margin:0">Quick start: JECRC University</div>
+      <div class="c-p">Ready-made data for <b>B.Tech Semester III, Section DB</b> (2026-27): the official holidays, the three in-semester exam periods, the Deepawali break, the third-Saturday rule and the Section DB timetable.</div>
+      <div class="c-row2"><button class="btn btn-primary" data-act="preset-cal">Load JECRC Sem III calendar</button></div>
+      <div class="c-row2"><button class="btn btn-secondary" data-act="preset-tt">Load Section DB timetable</button></div><div class="c-msg" id="cMsg"></div></div>`;
+  }
+  function skipText(s){
+    return 'Can miss up to ' + s.maxAbs + (s.missed ? ' · missed ' + s.missed + ' · ' + (s.left >= 0 ? s.left + ' left' : 'below target') : '');
+  }
   function cViewSummary(){
     const now = new Date();
     const res = CS.res = calCompute(cal, weeklySchedule, calIso(now), now.toISOString());
     if (!res.ok){
-      if (res.code === 'timetable') return `<div class="c-card"><div class="c-h">Add your timetable first</div><div class="c-p">${esc(res.error)} BunkSafe counts sessions from the timetable you already use here.</div><div class="c-row2"><button class="btn btn-primary" data-act="edit-tt">Add or scan timetable</button></div></div>`;
-      return `<div class="c-card"><div class="c-h">Set up your semester</div><div class="c-p">${esc(res.error)}</div></div>` + cSemesterForm();
+      if (res.code === 'timetable') return `<div class="c-card"><div class="c-h">Add your timetable first</div><div class="c-p">${esc(res.error)} BunkSafe counts sessions from the timetable you already use here.</div><div class="c-row2"><button class="btn btn-primary" data-act="edit-tt">Add or scan timetable</button></div></div>` + cPresets();
+      return `<div class="c-card"><div class="c-h">Set up your semester</div><div class="c-p">${esc(res.error)}</div></div>` + cPresets() + cSemesterForm().replace('<div class="c-msg" id="cMsg"></div>', '');
     }
     const left = calDiffDays(todayIso(), res.semEnd);
     const facts = `<div class="c-facts">
       <div><span>Next holiday</span><b>${res.nextHoliday ? esc(fmtD(res.nextHoliday.date, true)) : '—'}</b><small>${res.nextHoliday ? esc(res.nextHoliday.title) : 'none found'}</small></div>
       <div><span>Next class day</span><b>${res.nextTeaching ? esc(fmtD(res.nextTeaching, true)) : '—'}</b><small>${res.nextTeaching ? esc(calWeekday(res.nextTeaching)) : 'none left'}</small></div>
       <div><span>Semester ends</span><b>${esc(fmtD(res.semEnd, true))}</b><small>${left >= 0 ? left + ' days left' : 'ended'}</small></div></div>`;
+    const a = res.att;
+    const planner = `<div class="c-card"><div class="c-h2" style="margin:0">Attendance planner · target ${a.pct}%</div>
+      <div class="c-p">Across all subjects there are <b>${a.total}</b> classes this semester. Attend at least <b>${a.required}</b>, so you can miss up to <b>${a.maxAbs}</b> in total. Subject by subject the limits add up to <b>${a.subjectSum}</b>, because each subject is rounded separately.</div></div>`;
     const warns = res.warnings.map(w => `<div class="c-warn ${w.type}">${esc(w.text)}</div>`).join('');
     const cards = res.subjects.map(s => {
       const total = s.rem.total + s.done.total, pct = total ? Math.round(s.done.total / total * 100) : 0;
       return `<button class="c-sub" data-act="subject" data-name="${esc(s.name)}"><div class="c-sub-l"><div class="c-sub-n">${esc(s.name)}</div>
         <div class="c-sub-s">${s.rem.lec} lecture${s.rem.lec === 1 ? '' : 's'} · ${s.rem.lab} lab${s.rem.lab === 1 ? '' : 's'} left</div>
-        <div class="c-bar"><i style="width:${pct}%"></i></div><div class="c-sub-s">${s.done.total} done · ${total} in total</div></div>
+        <div class="c-bar"><i style="width:${pct}%"></i></div><div class="c-sub-s">${s.done.total} done · ${total} in total</div><div class="c-sub-s"><b>${esc(skipText(s))}</b></div></div>
         <div class="c-big">${s.rem.total}</div></button>`;
     }).join('');
     const up = res.upcoming.length ? `<div class="c-h2">Coming up</div>` + res.upcoming.map(u => `<div class="c-line"><span class="c-tag ${esc(u.category)}">${esc(CAT[u.category])}</span><span>${esc(fmtD(u.date, true))} · ${esc(u.title)}${u.partial ? ' (some classes)' : ''}</span></div>`).join('') : '';
     return `<div class="c-card c-top"><div><div class="c-h">${esc(cal.semester.name || 'This semester')}</div><div class="c-p">${esc(fmtD(cal.semester.start, true))} – ${esc(fmtD(cal.semester.end, true))} · counting from <b>${esc(fmtD(res.calc, true))}</b></div></div></div>
-      ${warns}${facts}<div class="c-h2">Remaining class sessions</div>${cards}${up}
+      ${warns}${facts}${planner}<div class="c-h2">Remaining class sessions</div>${cards}${up}
       <div class="c-foot">Calculated ${esc(fmtStamp(res.snapshot.calculatedAt))} · calendar changed ${esc(fmtStamp(cal.updatedAt))} · timetable v${esc(res.snapshot.timetableVersion)}. A double-period lab counts as one session.</div>`;
   }
 
   function cViewSubject(){
-    const res = CS.res || calCompute(cal, weeklySchedule, todayIso(), new Date().toISOString());
+    const res = CS.res = calCompute(cal, weeklySchedule, todayIso(), new Date().toISOString());
     const s = res.ok && res.subjects.find(x => x.name === CS.subject);
     if (!s) return '<div class="c-empty">Subject not found.</div>';
     const dates = CS.showAll ? s.dates : s.dates.slice(0, 12);
@@ -1410,10 +1512,14 @@ function calMarkDuplicates(rows, existing){
       <div><span class="c-tag ${esc(x.reason.category)}">${esc(CAT[x.reason.category] || 'Rule')}</span> ${esc(x.reason.title)}
       ${x.reason.entryId ? `<button class="c-link" data-act="edit-entry" data-id="${esc(x.reason.entryId)}">view entry</button>` : '<button class="c-link" data-act="goto-settings">view rules</button>'}</div></div>`).join('')
       : '<div class="c-empty">Nothing excluded.</div>';
+    const attBox = `<div class="c-card"><div class="c-h2" style="margin:0">Attendance · target ${res.att.pct}%</div>
+      <div class="c-p">${s.total} classes this semester. Attend at least <b>${s.required}</b>, so you can miss up to <b>${s.maxAbs}</b>.</div>
+      <div class="c-row2 c-counter"><span class="c-p">Classes I have missed</span><button class="btn btn-secondary btn-sm" data-act="missed-dec" aria-label="One less">−</button><b class="c-count">${s.missed}</b><button class="btn btn-secondary btn-sm" data-act="missed-inc" aria-label="One more">+</button></div>
+      <div class="c-warn ${s.left >= 0 ? 'info' : 'warn'}">${s.left >= 0 ? 'You can still miss <b>' + s.left + '</b> more.' : 'You are <b>' + (-s.left) + '</b> below the target.'}</div></div>`;
     return `<div class="c-card c-center"><div class="c-big2">${s.rem.total}</div><div class="c-p">sessions remaining</div>
       <div class="c-p">${s.rem.lec} lecture${s.rem.lec === 1 ? '' : 's'} · ${s.rem.lab} lab${s.rem.lab === 1 ? '' : 's'}</div>
       <div class="c-p">${s.done.total} sessions were scheduled before ${esc(fmtD(res.calc, true))}</div></div>
-      <div class="c-h2">Upcoming sessions</div>${list}${more}
+      ${attBox}<div class="c-h2">Upcoming sessions</div>${list}${more}
       <div class="c-h2">Excluded sessions (${s.excluded.length})</div>${ex}`;
   }
 
@@ -1499,7 +1605,8 @@ function calMarkDuplicates(rows, existing){
     const rules = cal.rules.length ? cal.rules.map(r => `<div class="c-line"><label class="c-check"><input type="checkbox" data-set="rule" data-id="${esc(r.id)}"${r.enabled ? ' checked' : ''} /> Every ${['', '1st', '2nd', '3rd', '4th', '5th'][r.ordinal]} ${esc(r.weekday)} is a holiday</label><button class="c-link" data-act="rule-del" data-id="${esc(r.id)}">remove</button></div>`).join('')
       : '<div class="c-p">No recurring rules yet.</div>';
     const subs = cBaseSubjects().map(([k, base]) => `<div class="c-grid2"><span class="c-p">${esc(base)}</span><input class="name-input" data-alias="${esc(k)}" maxlength="40" value="${esc(cal.aliases[k] || base)}" /></div>`).join('') || '<div class="c-p">Add your timetable to see subjects.</div>';
-    return cSemesterForm() + `
+    return cPresets() + cSemesterForm().replace('<div class="c-msg" id="cMsg"></div>', '') + `
+      <div class="c-card"><div class="c-h2">Attendance target</div><div class="c-grid2"><input class="name-input" type="number" min="1" max="100" inputmode="numeric" data-set="att" value="${esc(cal.attendancePct || 75)}" /><span class="c-p">percent of classes</span></div></div>
       <div class="c-card"><div class="c-h2">Count from</div><div class="c-grid2"><input class="name-input" type="date" data-set="calc" value="${esc(cal.calcDate || '')}" /><button class="btn btn-secondary btn-sm" data-act="calc-today">Use today</button></div>
         <div class="c-p">Leave empty to always count from today.</div></div>
       <div class="c-card"><div class="c-h2">Recurring rules</div>${rules}
@@ -1512,7 +1619,7 @@ function calMarkDuplicates(rows, existing){
       <div class="c-card"><div class="c-h2">Timetable</div><div class="c-p">Sessions come from your timetable.</div><div class="c-row2"><button class="btn btn-secondary" data-act="edit-tt">Edit or scan timetable</button></div></div>
       <div class="c-card"><div class="c-h2">Backup</div><div class="c-row2"><button class="btn btn-secondary" data-act="backup">Show backup text</button></div>
         <textarea class="name-input" id="bText" rows="4" placeholder="Backup text appears here. To restore, paste it here and tap Restore."></textarea>
-        <div class="c-row2"><button class="btn btn-secondary btn-sm" data-act="copy-backup">Copy</button><button class="btn btn-secondary btn-sm" data-act="restore">Restore</button><button class="btn btn-warn btn-sm" data-act="reset">Erase calendar data</button></div></div><div class="c-msg" id="cMsg"></div>`;
+        <div class="c-row2"><button class="btn btn-secondary btn-sm" data-act="copy-backup">Copy</button><button class="btn btn-secondary btn-sm" data-act="restore">Restore</button><button class="btn btn-warn btn-sm" data-act="reset">Erase calendar data</button></div></div>`;
   }
 
   /* ----- import helpers ----- */
@@ -1676,6 +1783,7 @@ function calMarkDuplicates(rows, existing){
       CS.draft[f] = f === 'status' ? (t.checked ? 'confirmed' : 'pending') : t.value;
       if (f === 'category' || f === 'scope') cRender();
     } else if (t.dataset.set === 'calc'){ cal.calcDate = t.value; calSave(false); }
+    else if (t.dataset.set === 'att'){ const v = Number(t.value); if (v >= 1 && v <= 100){ cal.attendancePct = v; calSave(true); } }
     else if (t.dataset.set === 'userwins'){ cal.userWins = t.checked; calSave(true); }
     else if (t.dataset.set === 'rule'){ const r = cal.rules.find(x => x.id === t.dataset.id); if (r){ r.enabled = t.checked; calSave(true); } }
     else if (t.dataset.alias){
@@ -1742,6 +1850,17 @@ function calMarkDuplicates(rows, existing){
         cal.entries = cal.entries.concat(made); calSave(true);
         CS.view = 'main'; CS.tab = 'calendar'; cRender(); cMsg(made.length + ' entr' + (made.length > 1 ? 'ies' : 'y') + ' added.', 'ok');
       }
+      else if (act === 'missed-inc' || act === 'missed-dec'){
+        const k = CS.subject; cal.missed[k] = Math.max(0, (cal.missed[k] || 0) + (act === 'missed-inc' ? 1 : -1)); calSave(false); cRender();
+      }
+      else if (act === 'preset-cal'){
+        if (cal.entries.length && !cArm(t, 'Tap again to replace your calendar entries')) return;
+        applyPresetCal(); cRender(); cMsg('JECRC Semester III calendar loaded. Open Summary to see your numbers.', 'ok');
+      }
+      else if (act === 'preset-tt'){
+        if (CAL_DAYS.some(d => (weeklySchedule[d] || []).length) && !cArm(t, 'Tap again to replace your timetable')) return;
+        weeklySchedule = JSON.parse(JSON.stringify(TT_PRESET_DB)); saveSchedule(); refreshToday(); render(); cRender(); cMsg('Section DB timetable loaded.', 'ok');
+      }
       else if (act === 'calc-today'){ cal.calcDate = ''; calSave(false); cRender(); }
       else if (act === 'rule-add'){
         const ord = Number(document.getElementById('rOrd').value), day = document.getElementById('rDay').value;
@@ -1757,12 +1876,12 @@ function calMarkDuplicates(rows, existing){
       else if (act === 'restore'){
         let p; try{ p = JSON.parse(document.getElementById('bText').value); }catch(_){ cMsg('That text is not a valid backup.', 'err'); return; }
         if (!p || !p.semester || !Array.isArray(p.entries)){ cMsg('That text is not a BunkSafe calendar backup.', 'err'); return; }
-        cal = Object.assign({ v:1, semester:{ name:'', start:'', end:'' }, calcDate:'', rules:[], entries:[], aliases:{}, userWins:false, updatedAt:'' }, p);
+        cal = Object.assign(calDefault(), p);
         calSave(true); cRender(); cMsg('Backup restored.', 'ok');
       }
       else if (act === 'reset'){
         if (t.dataset.armed !== '1'){ t.dataset.armed = '1'; t.textContent = 'Tap again to erase'; setTimeout(() => { t.dataset.armed = ''; t.textContent = 'Erase calendar data'; }, 3500); return; }
-        cal = { v:1, semester:{ name:'', start:'', end:'' }, calcDate:'', rules:[], entries:[], aliases:{}, userWins:false, updatedAt:'' }; calSave(true); cRender();
+        cal = calDefault(); calSave(true); cRender();
       }
     }catch(err){ cMsg((err && err.message) || 'Something went wrong.', 'err'); }
   });
@@ -1817,10 +1936,11 @@ function calMarkDuplicates(rows, existing){
   /* Swipe: left = next day, right = previous day */
   (function(){
     const appEl = document.getElementById('app');
-    let sx = 0, sy = 0, st = 0, tracking = false;
+    let sx = 0, sy = 0, st = 0, tracking = false, zone = 'blank';
     appEl.addEventListener('touchstart', e => {
       if (editorOverlay.classList.contains('open') || calOverlay.classList.contains('open')) { tracking = false; return; }
       if (e.target.closest && e.target.closest('input, button')) { tracking = false; return; }
+      zone = (e.target.closest && e.target.closest('.timeline, .day-nav, .panel-title')) ? 'days' : 'blank';
       const t = e.touches[0];
       sx = t.clientX; sy = t.clientY; st = Date.now(); tracking = true;
     }, { passive:true });
@@ -1831,7 +1951,8 @@ function calMarkDuplicates(rows, existing){
       const dx = t.clientX - sx, dy = t.clientY - sy;
       if (Date.now() - st > 700) return;
       if (Math.abs(dx) < 55 || Math.abs(dx) < Math.abs(dy) * 1.5) return;
-      changeDay(dx < 0 ? 1 : -1);
+      if (zone === 'blank' && dx > 0) cOpen();            // swipe right on empty space: open the calendar
+      else changeDay(dx < 0 ? 1 : -1);                    // swipe on the schedule list: change day
     }, { passive:true });
     document.addEventListener('keydown', e => {
       if (editorOverlay.classList.contains('open') || calOverlay.classList.contains('open')) return;
@@ -1847,8 +1968,20 @@ function calMarkDuplicates(rows, existing){
 </script>
 <script>
 if ('serviceWorker' in navigator){
+  var hadController = !!navigator.serviceWorker.controller;
+  function showUpdateBar(){
+    if (document.getElementById('updateBar')) return;
+    var bar = document.createElement('div');
+    bar.id = 'updateBar';
+    bar.style.cssText = 'position:fixed;left:12px;right:12px;bottom:calc(14px + env(safe-area-inset-bottom));z-index:200;background:#171B21;color:#EDEFF1;border:1px solid #3F9468;border-radius:14px;padding:12px 14px;display:flex;align-items:center;gap:12px;font:600 13.5px Manrope,system-ui,sans-serif;box-shadow:0 10px 30px rgba(0,0,0,.45)';
+    bar.innerHTML = '<span style="flex:1">A new version of BunkSafe is ready.</span><button id="updateBtn" style="border:none;border-radius:10px;background:#3F9468;color:#fff;font:700 13px Manrope,system-ui,sans-serif;padding:9px 14px">Reload</button>';
+    document.body.appendChild(bar);
+    document.getElementById('updateBtn').onclick = function(){ location.reload(); };
+  }
+  navigator.serviceWorker.addEventListener('message', function(e){ if (e.data && e.data.type === 'bunksafe-updated') showUpdateBar(); });
+  navigator.serviceWorker.addEventListener('controllerchange', function(){ if (hadController) showUpdateBar(); });
   window.addEventListener('load', function(){
-    navigator.serviceWorker.register('sw.js').catch(function(){});
+    navigator.serviceWorker.register('sw.js', { updateViaCache: 'none' }).then(function(reg){ reg.update().catch(function(){}); }).catch(function(){});
   });
 }
 </script>
